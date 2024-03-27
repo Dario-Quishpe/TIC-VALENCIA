@@ -39,8 +39,7 @@ puntos
 ```
 
 ```{r}
-#DIVISIONES DE DISTRTOS ORIGINALES 
-#library(sf)
+#ANALISIS EXPLORATORIO 
 ventana <- st_read("shape files-20221031T083303Z-001/shape files/valencia_outline.shp",quiet=TRUE)
 y <- st_read("shape files-20221031T083303Z-001/shape files/valencia_road.shp",quiet=TRUE)
 
@@ -63,6 +62,8 @@ ggplot()+geom_sf(data = ventana)+geom_sf(data = y,color="blue")+geom_sf(data = p
 
 
 ```{r}
+
+#OBTENIENDO VENTANITA
 
 ventana<- st_read("shape files-20221031T083303Z-001/shape files/valencia_outline.shp",quiet=TRUE)
 ventana1 <- st_transform(ventana, crs = st_crs("EPSG:32630"))
@@ -108,7 +109,7 @@ theme(
 ```
 ```{r}
 
-#Cumpliendo con el criterio : el 30$ de ceros sea menor  al 30%
+#dejando fuera cuadrantes con 0  observaciones
 grid <- ventana1%>%
   st_make_grid(n = c(40,40)) %>%
   st_intersection(ventana1) %>% 
@@ -184,15 +185,9 @@ unique(app)
 unique(app, rule="deldir")
 options(repr.plot.width = 50, repr.plot.height = 30)
 plot(quadratcount(app, nx = 17, ny = 18))
-quadrat.test(app, nx = 10, ny = 10)
-l<-quadrat.test(app, nx = 10, ny = 10)
+quadrat.test(app, nx = 17, ny = 18)
 
-```
 
-```{r}
-plot(app,pch=0,cex=0, main="Blue Plaques in Harrow",col="white")
-#now count the points in that fall in a 6 x 6 grid overlaid across the window
-plot(quadratcount(app, nx = 17, ny = 18),add=T,col="black",cex=0.5)
 ```
 
 
