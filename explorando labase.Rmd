@@ -1,0 +1,245 @@
+---
+title: "ANALISIS EXPLORATORIO TIC DE LOS DATOS"
+author: "Dario Quishpe"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(sf)
+library(leaflet)
+library(deldir)
+library(spatstat)
+pacman::p_load(tidyverse,sf,mapview)
+```
+
+### Estadistica descriptiva de los datos  
+
+
+```{r}
+base<-read.csv("obs_data_112Valencia (1).csv")
+head(base$crime_date)
+tail(base$crime_date)
+base
+#view(base)
+```
+
+
+
+```{r}
+(summary(base))
+str(base)
+
+```
+
+```{r}
+apply(is.na(base), 2, mean)
+```
+
+```{r}
+#DIVISIONES DE DISTRTOS ORIGINALES 
+#library(sf)
+ventana <- st_read("shape files-20221031T083303Z-001/shape files/valencia_outline.shp",quiet=TRUE)
+y <- st_read("shape files-20221031T083303Z-001/shape files/valencia_road.shp",quiet=TRUE)
+
+#ggplot()+geom_sf(data = x)+geom_sf(data = y)+geom_sf(data = puntos,aes())+scale_x_continuous()
+#y<-st_read("ca_municipios_20231105/ca_municipios_20231105.shp")
+#view(x)
+#ggplot() + geom_sf(data = x, fill="darkseagreen")
+#x <- st_read("drive-download-20231208T164315Z-001/ecuador.shp",quiet=TRUE)
+#ventana<-x |> filter(NOMBRE=="VALENCIA")  
+
+#Filtro de base para presentar datos espaciales 
+  
+puntos_grafica<-puntos |> filter(year>=2015&year<=2019)
+dim(puntos_grafica)
+dim(puntos)
+ggplot()+geom_sf(data = ventana)+geom_sf(data = y)+geom_sf(data = puntos_grafica,aes(),size=0.5,color="#D9DC4C")+scale_x_continuous()
+ggplot()+geom_sf(data = ventana)+geom_sf(data = y)+geom_sf(data = puntos_grafica,aes(),size=0.5,color="#D9DC4C")+facet_wrap(~crime_type)+
+        theme(axis.text.x = element_text(angle =90, vjust = 0.5, hjust = 1),strip.background = element_rect(fill = "lightblue"))
+
+
+```
+```{r}
+
+#tablita de frecuencias 
+tabla<-base |> group_by(crime_type) |> summarise(Tot=n()) |> 
+            mutate(Porcentaje=round(Tot/sum(Tot)*100,2))
+
+ggplot(tabla,aes(x=crime_type,y=Tot))+ geom_bar(color="black",fill="#8BE0F5",width = 0.9, stat="identity", position = position_dodge())+
+             ylim(c(0,75000))+
+            labs(x="Tipo de delitos", y= "Número de delitos") +   
+            labs(fill = "")+  
+            geom_text(aes(label=paste0(Tot," ", "", "(", Porcentaje, "%",")")),    
+            vjust=-0.9, 
+            color="black", 
+            hjust=0.5,
+            position = position_dodge(0.9),  
+            angle=0, 
+            size=4.0
+            ) 
+
+```
+
+
+
+```{r}
+
+
+set.seed(123)
+datos_discretos <- sample(letters[1:5], 100, replace = TRUE)
+
+# Crea el histograma con ggplot2 y escala de color personalizada
+ggplot(data.frame(x = datos_discretos), aes(x, fill = as.factor(x))) +
+  geom_bar() +
+  scale_fill_manual(values = scales::brewer_pal(palette = "Reds")(length(unique(datos_discretos)))) +
+  theme_minimal() +
+  labs(
+    title = "Histograma de Datos Discretos con Colores Personalizados",
+    x = "Valor Discreto",
+    y = "Frecuencia"
+  )
+```
+
+
+
+
+
+```{r}
+label_<-base |> group_by(crime_type) |> summarise(etiquetas=n()) |>select(etiquetas) |> as.list()
+label_<-label_$etiquetas
+
+
+
+
+#base|> ggplot(aes(as.numeric(Edad)))+geom_histogram(bins=10,color = "black")+ylab("Numero de muertes")+facet_wrap(~crime_type)
+base |> ggplot(aes(crime_type))+geom_bar(width=0.8, colour="black", fill="skyblue")+xlab("Tipo de delito")+ylab("Número de delitos")+coord_flip()+geom_text(aes(label=..count..), stat='count',  #8
+            position=position_dodge(0.9), 
+            vjust=-0.5, 
+            size=2
+            ) 
+
+
+
+
+
+  base |> group_by(crime_type) |> 
+        count() |> 
+        ungroup()|> 
+        mutate(porcentaje=round((n/sum(n))*100,digits=2)) |> 
+        ggplot(aes(x = "", y = porcentaje, fill = crime_type))+
+        geom_col() +
+        geom_label(aes(label = porcentaje),
+             position = position_stack(vjust = 0.5),
+             show.legend = FALSE) +
+        coord_polar(theta = "y")
+            
+base |> mutate(Edad=as.numeric(Edad)) |> filter(!is.na(Etnia)) |> mutate(Rango_edad=ifelse(Edad>0&Edad<=12,"niño",ifelse(Edad<18&Edad>12,"adolecente",if_else(Edad>=65,"Tercera edad","Adulto")))) |> ggplot(aes(Nacionalidad,fill=Nacionalidad))+geom_bar()  +  theme(axis.title=element_text(size=10,face="bold"))+
+  facet_wrap(~Etnia)+ylab("Numero de muertes")+coord_flip()
+ 
+
+base |> filter(Nacionalidad=="ECUADOR")|> group_by(`Etnia`) |> 
+        count() |> 
+        ungroup()|> 
+        mutate(porcentaje=round((n/sum(n))*100,digits=2))
+
+```
+
+
+
+```{r}
+#pacman::p_load(tidyverse,sf,mapview)
+ 
+puntos<-base|> 
+  st_as_sf(coords=c("LONGITUD","LATITUD"))
+#library(leaflet)
+
+# Creacion del mapa
+puntos %>% 
+  leaflet() %>% 
+  addTiles() %>% 
+  addCircleMarkers(color = "black",radius = 0.2) %>% 
+  addPopups(popup = puntos, 
+            options =  popupOptions(closeButton = FALSE))
+  
+```
+
+
+```{r}
+#pacman::p_load(tidyverse,sf,mapview)
+puntos<-base|> st_as_sf(coords=c("LONGITUD","LATITUD"),crs=4258)
+
+mapview(puntos, map.types = "CartoDB.Voyager")
+```
+
+
+
+### VENTANA
+
+```{r}
+
+#library(sf)
+x <- st_read("Ideas de base de datos/Circuitos/CIRCUITO.shp",quiet=TRUE)
+#view(x)
+#ggplot()   + geom_sf(data = x, fill="darkseagreen")
+y<-st_read("Ideas de base de datos/Distrito/DISTRITOS.shp",quiet=TRUE)
+filtro<-x |> filter(DPA_DESPRO %in% c("GUAYAS","DMG"))
+ggplot() + geom_sf(data = filtro, fill="plum1")+scale_x_continuous(breaks = c(1:50000))
+
+
+```
+```{r}
+
+x <- st_read("drive-download-20231208T164315Z-001/ecuador.shp",quiet=TRUE)
+ventana<-x |> filter(DPA_DESPRO=="GUAYAS") 
+
+ggplot()+geom_sf(data = ventana)+geom_sf(data = puntos,aes(color=Muertes))+facet_wrap(~Muertes,ncol = 4)+scale_x_continuous(breaks = seq(1,10000000))
+```
+
+
+### estructurando el objeto ppp
+
+```{r}
+
+
+puntos<-base|> st_as_sf(coords=c("LONGITUD","LATITUD"),crs=4258)
+
+
+target_crs <- st_crs("+proj=utm +zone=17 +south +datum=WGS84 +units=m +no_defs")
+
+a_sf_reprojected <- st_transform(puntos, target_crs)
+#print(st_crs(a_sf_reprojected))
+class(a_sf_reprojected)
+
+ventana_<-as.owin(ventana)
+
+app <- ppp( x = st_coordinates(a_sf_reprojected)[,1],
+            y = st_coordinates(a_sf_reprojected)[,2],
+            marks = c(1:463),
+            window = ventana_)
+
+plot(app, markscale=20)
+
+app<-rjitter(app, retry = TRUE, nsim = 1, drop = TRUE)
+
+unique(app)
+unique(app, rule="deldir")
+
+plot(quadratcount(app, nx = 20, ny = 50))
+quadrat.test(app, nx = 20, ny = 50)
+```
+
+
+Como podemos apreciar tenemos un claro aglomeramiento de observaciones en lugares concreto de la provincia
+del Guayas lo cual nos hace intuir que se trata de un proceso Cluster  ... 
+
+
+Por otro lado vemos que en el test ejecutado el p valor es menor que 0.05 por tanto se rechaza la hptesis
+nula de que los datos provienen de una distribucion de poisson , por lo cual existen patrones interesantes 
+a explorar

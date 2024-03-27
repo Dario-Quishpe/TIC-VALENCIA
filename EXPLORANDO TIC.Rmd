@@ -1,0 +1,215 @@
+---
+title: "EXPLORANDO_TIC"
+author: "Dario Quishpe"
+date: "`r Sys.Date()`"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(sf)
+library(leaflet)
+library(deldir)
+library(spatstat)
+#install.packages("tigris")
+library(tigris)
+library(spatstat.geom)
+pacman::p_load(tidyverse,sf,mapview)
+```
+```{r}
+BASE<-read.csv("obs_data_112Valencia (1).csv", sep=",", header=TRUE)
+```
+
+```{r}
+BASE<-read.csv("obs_data_112Valencia (1).csv", sep=",", header=TRUE) 
+puntos<-BASE|> 
+  st_as_sf(coords=c("crime_lon","crime_lat"),crs= 4258)
+
+#mapview(puntos, map.types = "CartoDB.Voyager")
+
+puntos
+```
+
+```{r}
+#DIVISIONES DE DISTRTOS ORIGINALES 
+#library(sf)
+ventana <- st_read("shape files-20221031T083303Z-001/shape files/valencia_outline.shp",quiet=TRUE)
+y <- st_read("shape files-20221031T083303Z-001/shape files/valencia_road.shp",quiet=TRUE)
+
+#ggplot()+geom_sf(data = x)+geom_sf(data = y)+geom_sf(data = puntos,aes())+scale_x_continuous()
+#y<-st_read("ca_municipios_20231105/ca_municipios_20231105.shp")
+#view(x)
+#ggplot() + geom_sf(data = x, fill="darkseagreen")
+#x <- st_read("drive-download-20231208T164315Z-001/ecuador.shp",quiet=TRUE)
+#ventana<-x |> filter(NOMBRE=="VALENCIA")  
+ggplot()+geom_sf(data = ventana)+geom_sf(data = y,color="blue")+geom_sf(data = puntos,aes(),size=0.2,color="#D9DC4C")+scale_x_continuous()
+ggplot()+geom_sf(data = ventana)+geom_sf(data = y,color="blue")+geom_sf(data = puntos,aes(),size=0.2,color="#D9DC4C")+facet_wrap(~crime_type)+
+        theme(axis.text.x = element_text(angle =90, vjust = 0.5, hjust = 1),strip.background = element_rect(fill = "lightblue"))
+
+
+```
+
+
+
+
+
+
+```{r}
+
+ventana<- st_read("shape files-20221031T083303Z-001/shape files/valencia_outline.shp",quiet=TRUE)
+ventana1 <- st_transform(ventana, crs = st_crs("EPSG:32630"))
+ventana2<-st_union(ventana1[1])
+window<-st_coordinates(st_reverse(ventana2[1]))
+a<-st_coordinates(st_reverse(ventana2[1]))
+window<-owin(poly=a[,c("X","Y")])
+plot(window)
+
+```
+
+
+```{r}
+
+
+#Cumpliendo con el criterio : el 30$ de ceros sea menor  al 30%
+grid <- ventana1%>%
+  st_make_grid(n = c(17,18)) %>%
+  st_intersection(ventana1) %>% 
+   st_cast("MULTIPOLYGON") %>%
+  st_sf()
+plot(grid)
+puntos <- st_transform(puntos, crs = st_crs(grid))
+
+inter <- st_intersects(grid, puntos)
+grid$count <- lengths(inter)
+ggplot(grid) + geom_sf(aes(fill = count))
+
+
+ggplot(grid) + geom_sf(aes(fill = count))+
+scale_fill_continuous(type = "viridis")
+
+
+
+grid.selec <- grid
+ggplot(grid.selec) + geom_sf(aes(fill = count))+
+geom_sf_text(aes(label = count), size = 2, color = "white")+
+scale_fill_continuous(type = "viridis") +
+theme(
+  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank())
+```
+```{r}
+
+#Cumpliendo con el criterio : el 30$ de ceros sea menor  al 30%
+grid <- ventana1%>%
+  st_make_grid(n = c(40,40)) %>%
+  st_intersection(ventana1) %>% 
+   st_cast("MULTIPOLYGON") %>%
+  st_sf()
+plot(grid)
+puntos <- st_transform(puntos, crs = st_crs(grid))
+
+inter <- st_intersects(grid, puntos)
+grid$count <- lengths(inter)
+ggplot(grid) + geom_sf(aes(fill = count))
+
+
+ggplot(grid) + geom_sf(aes(fill = count))+
+scale_fill_continuous(type = "viridis")
+
+
+
+grid.selec <- grid[grid$count>0, ]
+ggplot(grid.selec) + geom_sf(data = ventana,fill="#A3E3FF")+geom_sf(aes(fill = count))+
+geom_sf_text(aes(label = count), size = 2, color = "white")+
+scale_fill_continuous(type = "viridis") +
+theme(
+  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank())
+```
+
+
+```{r}
+
+# Crear los datos del grid
+grid <- ventana1 %>%
+  st_make_grid(n = c(40, 40)) %>%
+  st_intersection(ventana1) %>% 
+  st_cast("MULTIPOLYGON") %>%
+  st_sf()
+
+# Calcular el conteo de puntos en cada cuadrante
+puntos <- st_transform(puntos, crs = st_crs(grid))
+inter <- st_intersects(grid, puntos)
+grid$count <- lengths(inter)
+
+# Filtrar los cuadrantes que tienen conteo mayor que 0
+grid_filtrado <- grid[grid$count > 0, ]
+
+# Graficar
+ggplot() +
+  geom_sf(data = grid_filtrado, aes(fill = count)) +
+  geom_sf_text(data = grid_filtrado[grid_filtrado$count != 0, ], aes(label = count), size = 2, color = "white") +
+  scale_fill_continuous(type = "viridis") +
+  theme(
+    axis.text.x = element_text(angle = 45, vjust = 1, hjust = 1),
+    axis.title.x = element_blank(),
+    axis.title.y = element_blank()
+  )
+```
+
+```{r}
+target_crs <- st_crs("+proj=utm +zone=30 +north +datum=WGS84 +units=m +no_defs")
+a_sf_reprojected <- st_transform(puntos, target_crs)
+
+app <- ppp( x = st_coordinates(a_sf_reprojected)[,1],
+            y = st_coordinates(a_sf_reprojected)[,2],
+            marks = c(1:90247),
+            window = window)
+
+plot(app)
+
+#app<-rjitter(app, retry = TRUE, nsim = 1, drop = TRUE)
+
+unique(app)
+unique(app, rule="deldir")
+options(repr.plot.width = 50, repr.plot.height = 30)
+plot(quadratcount(app, nx = 17, ny = 18))
+quadrat.test(app, nx = 10, ny = 10)
+l<-quadrat.test(app, nx = 10, ny = 10)
+
+```
+
+```{r}
+plot(app,pch=0,cex=0, main="Blue Plaques in Harrow",col="white")
+#now count the points in that fall in a 6 x 6 grid overlaid across the window
+plot(quadratcount(app, nx = 17, ny = 18),add=T,col="black",cex=0.5)
+```
+
+
+```{r}
+kernel_density <- density(app,340)
+summary(kernel_density)
+plot(kernel_density)
+```
+
+
+```{r}
+K_function <- Kest(app)
+summary(K_function)
+plot(K_function, main = "Función K(r)")
+```
+```{r}
+plot(density(app, sigma = 950),  main = "0.5 x the default bandwidth")
+points(app, col="#00BA4C", pch=19,cex=0.05)
+```
+
