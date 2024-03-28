@@ -163,9 +163,21 @@ quadrat.test(app, nx = 17, ny = 18)
 
 ```
 
+```{r}
+
+#Estimaciones de sigma 
+estimacion1<-bw.diggle(app)
+estimacion2<-bw.ppl(app)
+estimacion3<-bw.scott(app)
+plot(density.ppp(app,sigma = estimacion1,edge = T),main=paste("Diggle"))
+plot(density.ppp(app,sigma = estimacion2,edge = T),main=paste("LH-crossvalidation"))
+plot(density.ppp(app,sigma = estimacion3[1],edge = T),main=paste("Scott1"))
+plot(density.ppp(app,sigma = estimacion3[2],edge = T),main=paste("Scott2"))
+estimacion3[1]
+```
 
 ```{r}
-kernel_density <- density(app,340)
+kernel_density <- density(app,278.5927)
 summary(kernel_density)
 plot(kernel_density)
 ```
@@ -174,10 +186,39 @@ plot(kernel_density)
 ```{r}
 K_function <- Kest(app)
 summary(K_function)
-plot(K_function, main = "Función K(r)")
+plot(K_function, main = "Función K(r) homogeneo")
+
+K_functioninom <- Kinhom(app)
+summary(K_functioninom)
+plot(K_functioninom, main = "Función K(r) no homogeneo")
 ```
 ```{r}
-plot(density(app, sigma = 950),  main = "0.5 x the default bandwidth")
+g_function <- Ginhom(app)
+summary(g_function)
+plot(g_function, main = "Función G(r)) no homogeneo")
+```
+```{r}
+g_function <- Gest(app)
+summary(g_function)
+plot(g_function, main = "Función G(r)) homogeneo")
+```
+
+```{r}
+L_function <-Lest(app)
+summary(L_function)
+plot(L_function, main = "Función L(r) homogeneo")
+
+L_functioninom <-Linhom(app)
+summary(L_functioninom)
+plot(L_functioninom, main = "Función L(r) no homogeneo")
+
+
+
+```
+
+
+```{r}
+plot(density(app, 278.5927),  main = "0.5 x the default bandwidth")
 points(app, col="#00BA4C", pch=19,cex=0.05)
 ```
 
