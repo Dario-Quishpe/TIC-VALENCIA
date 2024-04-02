@@ -24,6 +24,7 @@ pacman::p_load(tidyverse,sf,mapview)
 
 ```{r}
 base<-read.csv("obs_data_112Valencia (1).csv")
+base<-base |> filter(year<=2019)
 head(base$crime_date)
 tail(base$crime_date)
 base
