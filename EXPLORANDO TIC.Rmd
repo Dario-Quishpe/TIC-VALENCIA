@@ -22,15 +22,29 @@ library(spatstat)
 #install.packages("tigris")
 library(tigris)
 library(spatstat.geom)
+library(spatstat.linnet)
+#install.packages("spNetwork")
+library(spNetwork)
+library(sp)
+library(maps)
+library(stars)
+library(terra)
+install.packages("sfnetworks")
+library(sfnetworks)
+#install.packages("PBSmapping")
+library(PBSmapping)
 pacman::p_load(tidyverse,sf,mapview)
 ```
 ```{r}
 BASE<-read.csv("obs_data_112Valencia (1).csv", sep=",", header=TRUE)
+dim(BASE)
+BASE<-BASE |> filter(year==2019)
+dim(BASE)
 ```
 
 ```{r}
 BASE<-read.csv("obs_data_112Valencia (1).csv", sep=",", header=TRUE) 
-puntos<-BASE|> 
+puntos<-BASE|>filter(year==2019) |>  
   st_as_sf(coords=c("crime_lon","crime_lat"),crs= 4258)
 
 #mapview(puntos, map.types = "CartoDB.Voyager")
@@ -147,7 +161,7 @@ a_sf_reprojected <- st_transform(puntos, target_crs)
 
 app <- ppp( x = st_coordinates(a_sf_reprojected)[,1],
             y = st_coordinates(a_sf_reprojected)[,2],
-            marks = c(1:90247),
+            marks = c(1:10929),
             window = window)
 
 plot(app)
@@ -177,7 +191,7 @@ estimacion3[1]
 ```
 
 ```{r}
-kernel_density <- density(app,278.5927)
+kernel_density <- density(app,403.7447 )
 summary(kernel_density)
 plot(kernel_density)
 ```
@@ -220,5 +234,63 @@ plot(L_functioninom, main = "Función L(r) no homogeneo")
 ```{r}
 plot(density(app, 278.5927),  main = "0.5 x the default bandwidth")
 points(app, col="#00BA4C", pch=19,cex=0.05)
+```
+# Analisis en redes - ESTIMACION DEL KERNEL , Y FUNCION K DE RIPLEY 
+
+```{r}
+#puntos <- st_transform(puntos, crs = st_crs(grid))
+y<-st_transform(y, crs = st_crs(puntos))
+
+
+kfun_theatre <- kfunctions(y, puntos,
+                           start = 0, end = 10000, step = 1000, 
+                           width = 2000, nsim = 3,
+                            conf_int = 0.05,agg = 400)
+kfun_theatre$plotk
+kfun_theatre$plotg
+
+```
+
+
+
+
+
+```{r}
+library(spNetwork)
+library(tmap)
+
+data(main_network_mtl)
+data(mtl_libraries)
+data(mtl_theatres)
+
+tm_shape(main_network_mtl) + 
+  tm_lines("black") + 
+  tm_shape(mtl_libraries) + 
+  tm_dots(col = "red", size = 0.2) +
+  tm_shape(mtl_theatres) + 
+  tm_dots(col = "blue", size = 0.2)
+```
+```{r}
+kfun_biblio <- kfunctions(main_network_mtl, mtl_libraries,
+                          start = 0, end = 5000, step = 50,
+                          width = 1000, nsim = 50, verbose = FALSE)
+
+kfun_biblio$plotk
+```
+```{r}
+y <- st_read("shape files-20221031T083303Z-001/shape files/valencia_road.shp",quiet=TRUE)
+y <- st_transform(y, crs = "+proj=utm +zone=30 +datum=WGS84")
+
+# Convertir a un objeto de red
+vias <- as_sfnetwork(y)
+
+# Convertir a un objeto linnet
+
+vias <- as.linnet(vias)
+plot(vias)
+target_crs <- st_crs("+proj=utm +zone=30 +north +datum=WGS84 +units=m +no_defs")
+a_sf_reprojected <- st_transform(puntos, target_crs)
+
+lpp_VALE <- lpp(app,L = vias )
 ```
 
