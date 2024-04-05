@@ -33,18 +33,21 @@ install.packages("sfnetworks")
 library(sfnetworks)
 #install.packages("PBSmapping")
 library(PBSmapping)
+library(tmap)
 pacman::p_load(tidyverse,sf,mapview)
 ```
 ```{r}
 BASE<-read.csv("obs_data_112Valencia (1).csv", sep=",", header=TRUE)
 dim(BASE)
-BASE<-BASE |> filter(year==2019)
+BASE<-BASE |> filter(year==2019) |> select(crime_id,crime_lon,crime_lat)
 dim(BASE)
+BASE
+
 ```
 
 ```{r}
 BASE<-read.csv("obs_data_112Valencia (1).csv", sep=",", header=TRUE) 
-puntos<-BASE|>filter(year==2019) |>  
+puntos<-BASE|>filter(year==2019) |> select(crime_id,crime_lon,crime_lat) |> 
   st_as_sf(coords=c("crime_lon","crime_lat"),crs= 4258)
 
 #mapview(puntos, map.types = "CartoDB.Voyager")
@@ -56,6 +59,8 @@ puntos
 #ANALISIS EXPLORATORIO 
 ventana <- st_read("shape files-20221031T083303Z-001/shape files/valencia_outline.shp",quiet=TRUE)
 y <- st_read("shape files-20221031T083303Z-001/shape files/valencia_road.shp",quiet=TRUE)
+
+
 
 #ggplot()+geom_sf(data = x)+geom_sf(data = y)+geom_sf(data = puntos,aes())+scale_x_continuous()
 #y<-st_read("ca_municipios_20231105/ca_municipios_20231105.shp")
@@ -238,29 +243,107 @@ points(app, col="#00BA4C", pch=19,cex=0.05)
 ```
 # Analisis en redes - ESTIMACION DEL KERNEL , Y FUNCION K DE RIPLEY 
 
+
+
+```{r}
+#NO HACER CORRER EL CODIGO CON GRID .....
+y<-st_transform(y, crs = st_crs(puntos))
+distrito<-st_read("districtes-distritos/districtes-distritos.shp",quiet=TRUE)
+distrito<-distrito |> filter(objectid=="9")
+distrito<-st_transform(distrito, crs = st_crs(puntos))
+interseccion<-st_intersection(y,distrito)
+plot(interseccion)
+puntos <- st_transform(puntos,st_crs(distrito))
+puntos_distrito<-st_intersection(puntos,distrito)
+plot(puntos_distrito)
+calles_distrito1<- interseccion[st_geometry_type(interseccion) == "LINESTRING", ]
+#plot(puntos)
+```
+
+```{r}
+#puntos_distrito <- st_transform(puntos_distrito, crs = st_crs(grid))
+#calles_distrito1<-st_transform(calles_distrito1, crs = st_crs(puntos))
+
+puntos_snapped <- st_snap(puntos_distrito, calles_distrito1, tol = 10)
+puntos_snapped_unique <- unique(puntos_snapped)
+plot(puntos_snapped)
+kfun_distrito1 <- kfunctions(lines = calles_distrito1,points = puntos_snapped,
+                           start = 1, end = 2500,step = 50, 
+                           width = 100, nsim = 15)
+kfun_distrito1$plotk
+kfun_distrito1$plotg
+```
+
+
+
 ```{r}
 
 #ESTO ESTA MAL  NO SE COMO PONER LOS PARAMETROS DE LA FUNCION KFUNCTIONS 
-#puntos <- st_transform(puntos, crs = st_crs(grid))
+puntos <- st_transform(puntos, crs = st_crs(grid))
 y<-st_transform(y, crs = st_crs(puntos))
 
 
 kfun_theatre <- kfunctions(y, puntos,
-                           start = 0, end = 10000, step = 1000, 
-                           width = 1000, nsim = 10,
-                            conf_int = 0.05,agg = 2)
+                           start = 0, end = 2500, step = 50, 
+                           width = 100, nsim = 20,agg = 10)
 kfun_theatre$plotk
 kfun_theatre$plotg
 
 ```
 
 
+```{r}
+ventana<- st_read("districtes-distritos/districtes-distritos.shp",quiet=TRUE)
+ventana<-ventana |> filter(objectid=="9")
+ventana1 <- st_transform(ventana, crs = st_crs("EPSG:32630"))
+ventana2<-st_union(ventana1[1])
+window<-st_coordinates(st_reverse(ventana2[1]))
+a<-st_coordinates(st_reverse(ventana2[1]))
+window<-owin(poly=a[,c("X","Y")])
+plot(window)
+
+
+
+target_crs <- st_crs("+proj=utm +zone=30 +north +datum=WGS84 +units=m +no_defs")
+a_sf_reprojected <- st_transform(puntos, target_crs)
+
+app <- ppp( x = st_coordinates(a_sf_reprojected)[,1],
+            y = st_coordinates(a_sf_reprojected)[,2],
+            marks = c(1:6574),
+            window = window)
+
+plot(app)
+
+#app<-rjitter(app, retry = TRUE, nsim = 1, drop = TRUE)
+
+unique(app)
+unique(app, rule="deldir")
+options(repr.plot.width = 50, repr.plot.height = 30)
+plot(quadratcount(app, nx = 17, ny = 18))
+quadrat.test(app, nx = 17, ny = 18)
+```
 
 ```{r}
-y <- st_read("shape files-20221031T083303Z-001/shape files/valencia_road.shp",quiet=TRUE)
-y <- st_transform(y, crs = "+proj=utm +zone=30 +datum=WGS84")
+#auxiliar<-st_union(calles_distrito1)
+#plot(auxiliar)
+red_vial_ln<- as_sfnetwork(calles_distrito1)
+calles_distrito1 <- st_transform(calles_distrito1, crs = "+proj=utm +zone=30 +datum=WGS84")
+puntos_distrito <- st_transform(puntos_distrito, crs = "+proj=utm +zone=30 +datum=WGS84")
+red_vial_ln <- st_transform(red_vial_ln, crs = "+proj=utm +zone=30 +datum=WGS84")
+red_vial_ln <- as.linnet(red_vial_ln)
+lpp_VALE <- lpp(app,red_vial_ln)
+plot(lpp_VALE)
+lambdahat <- density.lpp(lpp_VALE,sigma = 100,distance = "euclidean",continuous = TRUE,kernel = "gaussian" )
+plot(lambdahat)
 
-# Convertir a un objeto de red
+
+
+
+Kfuncion<-linearK(lpp_VALE,correction = "Ang")
+plot(Kfuncion)
+```
+
+```{r}
 vias <- as_sfnetwork(y)
 
 # Convertir a un objeto linnet
@@ -271,9 +354,95 @@ target_crs <- st_crs("+proj=utm +zone=30 +north +datum=WGS84 +units=m +no_defs")
 a_sf_reprojected <- st_transform(puntos, target_crs)
 
 lpp_VALE <- lpp(app,L = vias )
+```
+
+```{r}
+y <- st_read("shape files-20221031T083303Z-001/shape files/valencia_road.shp",quiet=TRUE)
+y <- st_transform(y, crs = "+proj=utm +zone=30 +datum=WGS84")
+
+# Convertir a un objeto de red
+vias <- as_sfnetwork(y)
+
+# Convertir a un objeto linnet
+
+vias <- as.linnet(vias,sparse = TRUE)
+plot.linnet(vias)
+target_crs <- st_crs("+proj=utm +zone=30 +north +datum=WGS84 +units=m +no_defs")
+a_sf_reprojected <- st_transform(puntos, target_crs)
+
+lpp_VALE <- lpp(app,L = vias )
 plot(lpp_VALE,color="red")
 lambdahat <- density.lpp(lpp_VALE,sigma = 344.1128,distance = "euclidean",continuous = TRUE,kernel = "gaussian" )
 plot(lambdahat)
+
+#st_intersection()
+#Kfuncion<-linearK(lpp_VALE)
+#plot(Kfuncion)
+```
+#Intento con Barrio
+
+```{r}
+#NO HACER CORRER EL CODIGO CON GRID .....
+y<-st_transform(y, crs = st_crs(puntos))
+barrio<-st_read("barris-barrios/barris-barrios.shp",quiet=TRUE)
+#plot(barrio)
+barrio<-barrio |> filter(coddistbar=="011")
+barrio<-st_transform(barrio, crs = st_crs(puntos))
+interseccion<-st_intersection(y,barrio)
+plot(interseccion)
+puntos <- st_transform(puntos,st_crs(barrio))
+puntos_barrio<-st_intersection(puntos,barrio)
+plot(puntos_barrio)
+calles_barrio<- interseccion[st_geometry_type(interseccion) == "LINESTRING", ]
+#plot(puntos)
 ```
 
+
+```{r}
+ventana<- st_read("barris-barrios/barris-barrios.shp",quiet=TRUE)
+ventana<-ventana |> filter(coddistbar=="011")
+ventana1 <- st_transform(ventana, crs = st_crs("EPSG:32630"))
+ventana2<-st_union(ventana1[1])
+window<-st_coordinates(st_reverse(ventana2[1]))
+a<-st_coordinates(st_reverse(ventana2[1]))
+window<-owin(poly=a[,c("X","Y")])
+plot(window)
+
+
+
+target_crs <- st_crs("+proj=utm +zone=30 +north +datum=WGS84 +units=m +no_defs")
+a_sf_reprojected <- st_transform(puntos, target_crs)
+
+app <- ppp( x = st_coordinates(a_sf_reprojected)[,1],
+            y = st_coordinates(a_sf_reprojected)[,2],
+            marks = c(1:6574),
+            window = window)
+
+plot(app)
+
+#app<-rjitter(app, retry = TRUE, nsim = 1, drop = TRUE)
+
+unique(app)
+unique(app, rule="deldir")
+options(repr.plot.width = 50, repr.plot.height = 30)
+plot(quadratcount(app, nx = 17, ny = 18))
+quadrat.test(app, nx = 17, ny = 18)
+```
+
+```{r}
+#auxiliar<-st_union(calles_distrito1)
+#plot(auxiliar)
+red_vial_ln<- as_sfnetwork(calles_barrio)
+calles_distrito1 <- st_transform(calles_barrio, crs = "+proj=utm +zone=30 +datum=WGS84")
+puntos_distrito <- st_transform(puntos_barrio, crs = "+proj=utm +zone=30 +datum=WGS84")
+red_vial_ln <- st_transform(red_vial_ln, crs = "+proj=utm +zone=30 +datum=WGS84")
+red_vial_ln <- as.linnet(red_vial_ln)
+lpp_VALE <- lpp(app,red_vial_ln)
+plot(lpp_VALE)
+lambdahat <- density.lpp(lpp_VALE,sigma = 150,distance = "euclidean",continuous = TRUE,kernel = "gaussian" )
+plot(lambdahat)
+
+Kfuncion<-linearK(lpp_VALE,correction = "Ang")
+plot(Kfuncion)
+```
 

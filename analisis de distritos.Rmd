@@ -1,0 +1,214 @@
+---
+title: "analisis distritos"
+author: "Dario Quishpe"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+
+
+```{r}
+BASE<-read.csv("obs_data_112Valencia (1).csv", sep=",", header=TRUE)
+dim(BASE)
+BASE<-BASE |> filter(year<=2019) |> select(crime_id,crime_lon,crime_lat)
+dim(BASE)
+BASE
+
+```
+
+
+```{r}
+BASE<-read.csv("obs_data_112Valencia (1).csv", sep=",", header=TRUE) 
+puntos<-BASE|>filter(year<=2019) |> select(crime_id,crime_lon,crime_lat) |> 
+  st_as_sf(coords=c("crime_lon","crime_lat"),crs= 4258)
+
+#mapview(puntos, map.types = "CartoDB.Voyager")
+
+puntos
+
+ventana <- st_read("shape files-20221031T083303Z-001/shape files/valencia_outline.shp",quiet=TRUE)
+y <- st_read("shape files-20221031T083303Z-001/shape files/valencia_road.shp",quiet=TRUE)
+```
+
+```{r}
+#NO HACER CORRER EL CODIGO CON GRID .....
+y<-st_transform(y, crs = st_crs(puntos))
+distrito<-st_read("districtes-distritos/districtes-distritos.shp",quiet=TRUE)
+for(a in distrito$objectid){
+  distrito<-st_read("districtes-distritos/districtes-distritos.shp",quiet=TRUE)
+  distrito<-distrito |> filter(objectid==a) |> select(objectid)
+  distrito<-st_transform(distrito, crs = st_crs(puntos))
+  interseccion<-st_intersection(y,distrito)
+  #plot(interseccion)
+  puntos <- st_transform(puntos,st_crs(distrito))
+  puntos_distrito<-st_intersection(puntos,distrito)
+  print(a)
+  plot(puntos_distrito)
+  calles_distrito<- interseccion[st_geometry_type(interseccion) == "LINESTRING", ]
+}#plot(calles_distrito)
+```
+
+
+```{r}
+y<-st_transform(y, crs = st_crs(puntos))
+distrito<-st_read("districtes-distritos/districtes-distritos.shp",quiet=TRUE)
+distrito<-distrito |> filter(objectid=="9") 
+distrito<-st_transform(distrito, crs = st_crs(puntos))
+interseccion<-st_intersection(y,distrito)
+plot(interseccion)
+puntos <- st_transform(puntos,st_crs(distrito))
+puntos_distrito<-st_intersection(puntos,distrito)
+print(a)
+plot(puntos_distrito)
+calles_distrito<- interseccion[st_geometry_type(interseccion) == "LINESTRING", ]
+```
+
+
+
+```{r}
+ventana<- st_read("districtes-distritos/districtes-distritos.shp",quiet=TRUE)
+ventana<-ventana |> filter(objectid=="9")
+plot(ventana)
+ventana1 <- st_transform(ventana, crs = st_crs("EPSG:32630"))
+ventana2<-st_union(ventana1[1])
+window<-st_coordinates(st_reverse(ventana2[1]))
+a<-st_coordinates(st_reverse(ventana2[1]))
+window<-owin(poly=a[,c("X","Y")])
+plot(window)
+
+
+
+target_crs <- st_crs("+proj=utm +zone=30 +north +datum=WGS84 +units=m +no_defs")
+a_sf_reprojected <- st_transform(puntos_distrito, target_crs)
+
+app <- ppp( x = st_coordinates(a_sf_reprojected)[,1],
+            y = st_coordinates(a_sf_reprojected)[,2],
+            window = window)
+
+plot(app)
+
+#app<-rjitter(app, retry = TRUE, nsim = 1, drop = TRUE)
+
+unique(app)
+unique(app, rule="deldir")
+options(repr.plot.width = 50, repr.plot.height = 30)
+plot(quadratcount(app, nx = 17, ny = 18))
+quadrat.test(app, nx = 17, ny = 18)
+```
+
+
+```{r}
+#auxiliar<-st_union(calles_distrito1)
+#plot(auxiliar)
+red_vial_ln<- as_sfnetwork(calles_distrito)
+calles_distrito1 <- st_transform(calles_distrito1, crs = "+proj=utm +zone=30 +datum=WGS84")
+puntos_distrito <- st_transform(puntos_distrito, crs = "+proj=utm +zone=30 +datum=WGS84")
+red_vial_ln <- st_transform(red_vial_ln, crs = "+proj=utm +zone=30 +datum=WGS84")
+red_vial_ln <- as.linnet(red_vial_ln)
+lpp_VALE <- lpp(app,red_vial_ln)
+plot(lpp_VALE)
+lambdahat <- density.lpp(lpp_VALE,sigma = 85,distance = "euclidean")
+plot(lambdahat)
+lpp_VALE<-unmark(lpp_VALE)
+m1<-lppm(lpp_VALE ~ 1)
+r <- seq(0, 160, by=10)
+k_finom<-linearKinhom(lpp_VALE,lambda = m1,r)
+plot(k)
+```
+```{r}
+
+EIP <- predict(m1)
+#plot(EIP)
+
+ # Matern cluster process on a linear network
+ # Centers = (x,y)-coordinates of parent points
+ # R = The R parameter of the Matern cluster process
+ # alpha = The alpha parameter of the Matern cluster process
+ # LL = The linear network on which the point pattern should be simulated.
+rMatClustlpp <- function(Centers, R, alpha, LL) {
+X <- array(0,0)
+Y <- array(0,0)
+for(p in 1:length(Centers$data$x)) {
+BBCOutD <- disc(radius=R, centre=c(Centers$data$x[p],
+Centers$data$y[p]),
+npoly = 32)
+BBCD <- intersect.owin(LL$window, BBCOutD)
+if(volume(LL[BBCOutD])>0) {
+Xp <- rpoislpp(alpha/volume(LL[BBCOutD]), L=LL[BBCD])
+X <- append(X, as.numeric(Xp$data$x))
+Y <- append(Y, as.numeric(Xp$data$y))
+}
+}
+lpp(cbind(X,Y), LL)
+}
+```
+
+
+```{r}
+nsim <- 10
+valpha <- seq(5, 30, by=5)
+vR <- seq(100, 2500, by=500)
+
+```
+
+```{r}
+set.seed(2023)
+Contrast <- array(0, c(length(valpha), length(vR)))
+for(i in 1:length(valpha)) {
+  for(j in 1:length(vR)) {
+  # Compute the average K of 10 simulation from the model
+  KMC <- array(0,length(r))
+  for(s in 1:nsim) {
+  # Centers from a Poisson process
+  Centers <- rpoislpp(EIP/valpha[i], L=lpp_VALE[['domain']])
+  XX <- rMatClustlpp(Centers, vR[j], valpha[i], lpp_VALE[['domain']])
+  KMC <- KMC + linearKinhom(XX, lambda = m1, r=r)$est
+  }
+  # Compute the difference between estimated and average K
+  Contrast[i,j] <- sqrt(sum((k_finom$est-KMC/nsim)^2))
+  }
+}
+
+```
+
+
+```{r}
+ plot(as.im(Contrast), main="Values of Contrasts")
+ # Finding the minimum value of the contrast
+ id <- which(Contrast == min(Contrast), arr.ind = TRUE)
+ alpha <- valpha[id[,1]]
+ R <- vR[id[,2]]
+ # Chosen values
+
+```
+
+```{r}
+# Centers from a Poisson process
+Centers <- rpoislpp(EIP/alpha, L=lpp_VALE[['domain']])
+par(mfrow=c(1,2))
+plot(Centers)
+XX <- rMatClustlpp(Centers, R, alpha, lpp_VALE[['domain']])
+plot(XX, main="A realization of the model")
+```
+
+
+```{r}
+#ESTO ESTA MAL  NO SE COMO PONER LOS PARAMETROS DE LA FUNCION KFUNCTIONS 
+#puntos <- st_transform(puntos, crs = st_crs(grid))
+#plot(calles_distrito1)
+tm_shape(calles_distrito) + 
+  tm_lines("black") + 
+  tm_shape(puntos_distrito) + 
+  tm_dots(col = "red", size = 0.2)
+
+calles_distrito <- st_transform(calles_distrito, crs = "+proj=utm +zone=30 +datum=WGS84")
+puntos_distrito <- st_transform(puntos_distrito, crs = "+proj=utm +zone=30 +datum=WGS84")
+#red_vial_ln <- st_transform(red_vial_ln, crs = "+proj=utm +zone=30 +datum=WGS84")
+
+
+kfun_theatre <- kfunctions(calles_distrito, puntos_distrito,start = 0, end = 180, step = 10,agg=1)
+kfun_theatre$plotk
+kfun_theatre$plotg
+
+```
+
