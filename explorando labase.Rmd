@@ -16,6 +16,14 @@ library(sf)
 library(leaflet)
 library(deldir)
 library(spatstat)
+library(tsibble)
+library(tseries)
+
+library(fpp3)
+library(forecast)
+library(fpp2)
+library(TSA)
+library(grid)
 pacman::p_load(tidyverse,sf,mapview)
 ```
 
@@ -42,6 +50,30 @@ str(base)
 ```{r}
 apply(is.na(base), 2, mean)
 ```
+```{r}
+BASE<-read.csv("obs_data_112Valencia (1).csv", sep=",", header=TRUE) 
+puntos<-BASE|>filter(year<=2019) |> st_as_sf(coords=c("crime_lon","crime_lat"),crs= 4258)
+
+#mapview(puntos, map.types = "CartoDB.Voyager")
+
+puntos
+```
+```{r}
+
+
+ventana_sin_z <- st_zm(ventana)
+
+# Crear el mapa
+mapa <- leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(data = puntos, color = "#2DBCFA", radius = 0.05)
+
+# Agregar los límites de la ciudad al mapa
+mapa1 <- mapa %>% addPolygons(data = ventana_sin_z, fillColor = "transparent", color = "black", weight = 5)
+
+# Visualizar el mapa
+mapa1
+```
 
 ```{r}
 #DIVISIONES DE DISTRTOS ORIGINALES 
@@ -58,11 +90,11 @@ y <- st_read("shape files-20221031T083303Z-001/shape files/valencia_road.shp",qu
 
 #Filtro de base para presentar datos espaciales 
   
-puntos_grafica<-puntos |> filter(year>=2015&year<=2019)
+puntos_grafica<-puntos 
 dim(puntos_grafica)
 dim(puntos)
-ggplot()+geom_sf(data = ventana)+geom_sf(data = y)+geom_sf(data = puntos_grafica,aes(),size=0.5,color="#D9DC4C")+scale_x_continuous()
-ggplot()+geom_sf(data = ventana)+geom_sf(data = y)+geom_sf(data = puntos_grafica,aes(),size=0.5,color="#D9DC4C")+facet_wrap(~crime_type)+
+ggplot()+geom_sf(data = ventana,color="black",size=5)+geom_sf(data = y,color="#435962")+geom_sf(data = puntos_grafica,aes(),size=0.1,color="#2DBCFA")+scale_x_continuous()
+ggplot()+geom_sf(data = ventana,color="black",size=2)+geom_sf(data = y,color="#435962")+geom_sf(data = puntos_grafica,aes(),size=0.1,color="#2DBCFA")+facet_wrap(~crime_type)+
         theme(axis.text.x = element_text(angle =90, vjust = 0.5, hjust = 1),strip.background = element_rect(fill = "lightblue"))
 
 
@@ -88,5 +120,20 @@ ggplot(tabla,aes(x=crime_type,y=Tot))+ geom_bar(color="black",fill="#40D6FA",wid
 
 ```
 
+```{r}
+st<-base |> mutate(crime_date=as.Date(crime_date,format = "%m/%d/%Y"))
+stmy<-st |>mutate(anio_mes=format(crime_date,"%Y-%m")) |> 
+        group_by(anio_mes) |> summarise(Numero_de_Registros=n())
+
+stmy$Tiempo <-yearmonth(stmy$anio_mes)
+ST<-stmy |>  as_tsibble(index = Tiempo) |> select(Tiempo,Numero_de_Registros)
+ST %>%
+  autoplot() +
+  geom_point(color = "red") +  # Agregar puntos en cada observación con color rojo
+  geom_line(color = "blue") +  # Cambiar color de la línea a azul
+  ggtitle("
+          Número de registros por mes") +  # Establecer título
+  theme_bw()  # Aplicar tema de fondo blanco y negro
+```
 
 

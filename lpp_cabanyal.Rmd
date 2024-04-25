@@ -1,22 +1,48 @@
 ---
-title: "barrios"
+title: "LPP_CABANYAL"
 author: "Dario Quishpe"
-date: '`r Sys.Date()`'
+date: "`r Sys.Date()`"
 output: html_document
 ---
+
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(sf)
+library(leaflet)
+library(deldir)
+library(spatstat)
+#install.packages("tigris")
+library(tigris)
+library(spatstat.geom)
+library(spatstat.linnet)
+#install.packages("spNetwork")
+library(spNetwork)
+library(sp)
+library(maps)
+library(stars)
+library(terra)
+#install.packages("sfnetworks")
+library(sfnetworks)
+#install.packages("PBSmapping")
+library(PBSmapping)
+library(tmap)
+pacman::p_load(tidyverse,sf,mapview)
+```
 
 ```{r}
 BASE<-read.csv("obs_data_112Valencia (1).csv", sep=",", header=TRUE)
 dim(BASE)
-BASE<-BASE |> filter(year<=2019) |> select(crime_id,crime_lon,crime_lat)
+BASE<-BASE |> filter(year<=2019) 
 dim(BASE)
-BASE
-
+head(BASE)
 ```
+
 
 ```{r}
 BASE<-read.csv("obs_data_112Valencia (1).csv", sep=",", header=TRUE) 
-puntos<-BASE|>filter(year<=2019) |> select(crime_id,crime_lon,crime_lat) |> 
+puntos<-BASE|>filter(year<=2019) |> 
   st_as_sf(coords=c("crime_lon","crime_lat"),crs= 4258)
 
 #mapview(puntos, map.types = "CartoDB.Voyager")
@@ -26,6 +52,7 @@ puntos
 ventana <- st_read("shape files-20221031T083303Z-001/shape files/valencia_outline.shp",quiet=TRUE)
 y <- st_read("shape files-20221031T083303Z-001/shape files/valencia_road.shp",quiet=TRUE)
 ```
+
 
 ```{r}
 #NO HACER CORRER EL CODIGO CON GRID .....
@@ -44,6 +71,13 @@ puntos_barrio<-st_intersection(puntos,barrio)
 plot(puntos_barrio)
 calles_barrio<- interseccion[st_geometry_type(interseccion) == "LINESTRING", ]
 
+```
+
+```{r}
+tm_shape(calles_barrio) + 
+  tm_lines("black") + 
+  tm_shape(puntos_barrio) + 
+  tm_dots(col = "blue", size = 0.2)
 ```
 
 
@@ -80,11 +114,28 @@ quadrat.test(app, nx = 17, ny = 18)
 
 
 ```{r}
+
+#Estimaciones de sigma 
+estimacion1<-bw.diggle(app)
+estimacion2<-bw.ppl(app)
+estimacion3<-bw.scott(app)
+plot(density.ppp(app,sigma = estimacion1,edge = T),main=paste("Diggle"))
+plot(density.ppp(app,sigma = estimacion2,edge = T),main=paste("LH-crossvalidation"))
+plot(density.ppp(app,sigma = estimacion3[1],edge = T),main=paste("Scott1"))
+plot(density.ppp(app,sigma = estimacion3[2],edge = T),main=paste("Scott2"))
+estimacion3[1]
+estimacion3[2]
+```
+
+
+
+```{r}
 #auxiliar<-st_union(calles_distrito1)
 #plot(auxiliar)
 red_vial_ln<- as_sfnetwork(calles_barrio)
-calles_distrito1 <- st_transform(calles_barrio, crs = "+proj=utm +zone=30 +datum=WGS84")
-puntos_distrito <- st_transform(puntos_barrio, crs = "+proj=utm +zone=30 +datum=WGS84")
+plot(red_vial_ln)
+calles_barrio <- st_transform(calles_barrio, crs = "+proj=utm +zone=30 +datum=WGS84")
+puntos_barrio <- st_transform(puntos_barrio, crs = "+proj=utm +zone=30 +datum=WGS84")
 red_vial_ln <- st_transform(red_vial_ln, crs = "+proj=utm +zone=30 +datum=WGS84")
 red_vial_ln <- as.linnet(red_vial_ln)
 lpp_VALE <- lpp(app,red_vial_ln)
@@ -92,15 +143,18 @@ lpp_VALE <- lpp(app,red_vial_ln)
 #lambdahat <- density.lpp(lpp_VALE,sigma = 150,distance = "euclidean",continuous = TRUE,kernel = "gaussian" )
 #plot(lambdahat)
 
-lambdahat <- density.lpp(lpp_VALE,sigma = 85,distance = "euclidean")
-plot(lambdahat)
+lambda <- density.lpp(lpp_VALE,sigma = 77.26966 ,distance = "euclidean")
+plot(lambda)
 lpp_VALE<-unmark(lpp_VALE)
 m1<-lppm(lpp_VALE ~ 1)
-r <- seq(0, 250, by=20)
+r <- seq(0, 300, by=20)
 k_finom<-linearKinhom(lpp_VALE,lambda = m1,r)
 plot(k_finom)
-
+plot(lpp_VALE)
+#plot(red_vial_ln)
 ```
+
+
 ```{r}
 
 EIP <- predict(m1)
@@ -132,9 +186,9 @@ lpp(cbind(X,Y), LL)
 
 
 ```{r}
-nsim <- 3
+nsim <- 10
 valpha <- seq(5, 30, by=6)
-vR <- seq(100, 1500, by=500)
+vR <- seq(100, 1000, by=350)
 
 ```
 
@@ -170,6 +224,58 @@ for(i in 1:length(valpha)) {
 
 ```
 
+
+```{r}
+# Centers from a Poisson process
+Centers <- rpoislpp(EIP/alpha, L=lpp_VALE[['domain']])
+par(mfrow=c(1,2))
+plot(Centers)
+XX <- rMatClustlpp(Centers, R, alpha, lpp_VALE[['domain']])
+plot(XX, main="A realization of the model")
+```
+```{r}
+atm_distancia <- puntos_barrio$atm_dist
+police_distancia <- puntos_barrio$police_dist
+bar_distancia <- puntos_barrio$bar_dist
+
+atm_dist_imagen <- as.im(as.matrix(atm_distancia), W = Window(app))
+police_dist_imagen <- as.im(as.matrix(police_distancia), W = Window(app))
+bar_dist_imagen <- as.im(as.matrix(bar_distancia), W = Window(app))
+m1<-lppm(lpp_VALE ~ atm_dist_imagen+police_dist_imagen+bar_dist_imagen)
+r <- seq(0, 300, by=30)
+k_finom<-linearKinhom(lpp_VALE,lambda = m1,r)
+plot(k_finom)
+```
+
+```{r warning=FALSE}
+set.seed(2023)
+Contrast <- array(0, c(length(valpha), length(vR)))
+for(i in 1:length(valpha)) {
+  for(j in 1:length(vR)) {
+  # Compute the average K of 10 simulation from the model
+  KMC <- array(0,length(r))
+  for(s in 1:nsim) {
+  # Centers from a Poisson process
+  Centers <- rpoislpp(EIP/valpha[i], L=lpp_VALE[['domain']])
+  XX <- rMatClustlpp(Centers, vR[j], valpha[i], lpp_VALE[['domain']])
+  KMC <- KMC + linearKinhom(XX, lambda = m1, r=r)$est
+  }
+  # Compute the difference between estimated and average K
+  Contrast[i,j] <- sqrt(sum((k_finom$est-KMC/nsim)^2))
+  }
+}
+
+```
+
+```{r}
+ plot(as.im(Contrast), main="Values of Contrasts")
+ # Finding the minimum value of the contrast
+ id <- which(Contrast == min(Contrast), arr.ind = TRUE)
+ alpha <- valpha[id[,1]]
+ R <- vR[id[,2]]
+ # Chosen values
+
+```
 
 ```{r}
 # Centers from a Poisson process
