@@ -62,17 +62,75 @@ puntos
 
 
 ventana_sin_z <- st_zm(ventana)
+barrio<- st_read("barris-barrios/barris-barrios.shp",quiet=TRUE)
+barrio<-barrio |> filter(coddistbar=="112")
+#barrio <- st_transform(barrio, crs = st_crs("EPSG:32630"))
+barrio_sin_z <- st_zm(barrio)
+# Crear el mapa
+mapa <- leaflet() %>%
+  addTiles() %>%addPolygons(data = ventana_sin_z,
+  opacity = 1,
+  color = "black",
+  dashArray = "3",
+  fillOpacity = 0.2, weight = 5)
+  
+mapa
+```
 
+
+```{r}
+
+
+ventana_sin_z <- st_zm(ventana)
+barrio<- st_read("barris-barrios/barris-barrios.shp",quiet=TRUE)
+barrio<-barrio |> filter(coddistbar=="112")
+#barrio <- st_transform(barrio, crs = st_crs("EPSG:32630"))
+barrio_sin_z <- st_zm(barrio)
+# Crear el mapa
+mapa <- leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(data = puntos, color = "#2DBCFA", radius = 0.01)
+
+# Agregar los límites de la ciudad al mapa
+mapa1 <- mapa %>% addPolygons(data = ventana_sin_z,
+  opacity = 1,
+  color = "black",
+  dashArray = "3",
+  fillOpacity = 0.2, weight = 5)
+
+mapa1
+```
+
+```{r}
+ventana_sin_z <- st_zm(ventana)
+barrio<- st_read("barris-barrios/barris-barrios.shp",quiet=TRUE)
+barrio<-barrio |> filter(coddistbar=="112")
+#barrio <- st_transform(barrio, crs = st_crs("EPSG:32630"))
+barrio_sin_z <- st_zm(barrio)
 # Crear el mapa
 mapa <- leaflet() %>%
   addTiles() %>%
   addCircleMarkers(data = puntos, color = "#2DBCFA", radius = 0.05)
 
 # Agregar los límites de la ciudad al mapa
-mapa1 <- mapa %>% addPolygons(data = ventana_sin_z, fillColor = "transparent", color = "black", weight = 5)
+mapa1 <- mapa %>% addPolygons(data = ventana_sin_z,
+  opacity = 1,
+  color = "white",
+  dashArray = "3",
+  fillOpacity = 0.2, weight = 5)
+
+mapa2<-mapa1 |> addPolygons(data = barrio_sin_z,
+  opacity = 1,
+  color = "red",
+  dashArray = "3",
+  fillOpacity = 0.5,   weight = 6) 
 
 # Visualizar el mapa
-mapa1
+mapa2
+```
+
+```{r}
+
 ```
 
 ```{r}
@@ -129,11 +187,11 @@ stmy$Tiempo <-yearmonth(stmy$anio_mes)
 ST<-stmy |>  as_tsibble(index = Tiempo) |> select(Tiempo,Numero_de_Registros)
 ST %>%
   autoplot() +
-  geom_point(color = "red") +  # Agregar puntos en cada observación con color rojo
-  geom_line(color = "blue") +  # Cambiar color de la línea a azul
+  geom_point(color = "black") +  
+  geom_line(color = "blue") +  
   ggtitle("
           Número de registros por mes") +  # Establecer título
-  theme_bw()  # Aplicar tema de fondo blanco y negro
+  theme_bw()  
 ```
 
 
