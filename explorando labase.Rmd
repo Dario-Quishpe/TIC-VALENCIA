@@ -32,6 +32,9 @@ pacman::p_load(tidyverse,sf,mapview)
 
 ```{r}
 base<-read.csv("obs_data_112Valencia (1).csv")
+head(base$crime_date)
+tail(base$crime_date)
+
 base<-base |> filter(year<=2019)
 head(base$crime_date)
 tail(base$crime_date)
@@ -68,12 +71,10 @@ barrio<-barrio |> filter(coddistbar=="112")
 barrio_sin_z <- st_zm(barrio)
 # Crear el mapa
 mapa <- leaflet() %>%
-  addTiles() %>%addPolygons(data = ventana_sin_z,
-  opacity = 1,
-  color = "black",
-  dashArray = "3",
-  fillOpacity = 0.2, weight = 5)
-  
+  addTiles() %>% addPolygons(data = barrio_sin_z,color = "red",opacity = 1,
+  dashArray = "3",   weight = 6) 
+
+# Visualizar el mapa
 mapa
 ```
 
@@ -188,9 +189,7 @@ ST<-stmy |>  as_tsibble(index = Tiempo) |> select(Tiempo,Numero_de_Registros)
 ST %>%
   autoplot() +
   geom_point(color = "black") +  
-  geom_line(color = "blue") +  
-  ggtitle("
-          Número de registros por mes") +  # Establecer título
+  geom_line(color = "blue") +    # Establecer título
   theme_bw()  
 ```
 

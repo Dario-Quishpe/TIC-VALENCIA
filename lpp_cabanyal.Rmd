@@ -75,14 +75,16 @@ plot(puntos_barrio)
 calles_barrio<- interseccion[st_geometry_type(interseccion) == "LINESTRING", ]
 
 ```
+
+
+
 ```{r}
 puntos_grafica<-puntos_barrio 
 dim(puntos_grafica)
 dim(puntos)
-mapabarrio<-ggplot()+geom_sf(data = ventana,color="black",size=5)+geom_sf(data = calles_barrio,color="#435962")+geom_sf(data = puntos_grafica,aes(),size=1.5,color="#2DBCFA")+
+ggplot()+geom_sf(data = ventana,color="black",size=5)+geom_sf(data = calles_barrio,color="#435962")+geom_sf(data = puntos_grafica,aes(),size=1.5,color="#2DBCFA")+
         theme(axis.text.x = element_text(angle =90, vjust = 0.5, hjust = 1),strip.background = element_rect(fill = "lightblue"))
-ruta_imagen <- "graficas/cabanyal.jpg"
-fotitomapabarrio<-rasterGrob(readJPEG(ruta_imagen))
+
 
 ```
 
