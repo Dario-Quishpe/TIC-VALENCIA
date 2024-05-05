@@ -31,6 +31,8 @@ library(tmap)
 library(gridExtra)
 library(grid)
 library(jpeg)
+#install.packages("raster")
+library(raster)
 pacman::p_load(tidyverse,sf,mapview)
 ```
 
@@ -58,7 +60,7 @@ y <- st_read("shape files-20221031T083303Z-001/shape files/valencia_road.shp",qu
 
 
 ```{r}
-#NO HACER CORRER EL CODIGO CON GRID .....
+
 y<-st_transform(y, crs = st_crs(puntos))
 barrio<-st_read("barris-barrios/barris-barrios.shp",quiet=TRUE)
 #plot(barrio)
@@ -82,11 +84,59 @@ calles_barrio<- interseccion[st_geometry_type(interseccion) == "LINESTRING", ]
 puntos_grafica<-puntos_barrio 
 dim(puntos_grafica)
 dim(puntos)
-ggplot()+geom_sf(data = ventana,color="black",size=5)+geom_sf(data = calles_barrio,color="#435962")+geom_sf(data = puntos_grafica,aes(),size=1.5,color="#2DBCFA")+
+ggplot()+geom_sf(data = ventana,color="black",size=10)+geom_sf(data = calles_barrio,color="blue")+geom_sf(data = puntos_grafica,aes(),size=1.5,color="#C8DC02")+
         theme(axis.text.x = element_text(angle =90, vjust = 0.5, hjust = 1),strip.background = element_rect(fill = "lightblue"))
 
 
 ```
+```{r}
+st<-puntos_barrio |> mutate(crime_date=as.Date(crime_date,format = "%m/%d/%Y"))
+stmy<-st |>mutate(anio_mes=format(crime_date,"%Y")) |> 
+        group_by(anio_mes) |> summarise(Numero_de_Registros=n())
+
+stmy$Tiempo <-yearmonth(stmy$anio_mes)
+ST<-stmy |>  as_tsibble(index = Tiempo) |> select(Tiempo,Numero_de_Registros)
+ST %>%
+  autoplot() +
+  geom_point(color = "black") +  
+  geom_line(color = "blue") +    # Establecer título
+  theme_bw()  
+```
+
+```{r}
+diadelasemana<-puntos_barrio |> group_by(week_day_name) |> summarise(Observaciones=n()) |> arrange(Observaciones)
+horadeldia<-puntos_barrio |> group_by(crime_hour) |> summarise(Observaciones=n()) |> arrange(crime_hour)
+
+suma<-horadeldia |> filter(crime_hour>=18| crime_hour<=1)
+sum(suma$Observaciones)
+sum(horadeldia$Observaciones)
+diadelasemana$week_day_name <- factor(diadelasemana$week_day_name, levels = c("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"),
+                              labels = c("Lun", "Mar", "Miér", "Jue", "Vier", "Sáb", "Dom"))
+
+color_palette <- colorRampPalette(c("yellow", "orange","red"))
+
+dias<-ggplot(diadelasemana, aes(x = week_day_name, y = Observaciones, fill = Observaciones)) +
+  geom_bar(stat = "identity") +geom_text(aes(label = Observaciones), vjust = -0, color = "black", size = 3)+
+  scale_fill_gradientn(colours = color_palette(nrow(diadelasemana))) + 
+  labs(x = "Día de la semana", y = "Observaciones") +
+  scale_x_discrete(labels = function(x) gsub("Tuesday", "Mar", gsub("Monday", "Lun", gsub("Wednesday", "Miér", gsub("Thursday", "Jue", gsub("Friday", "Vier", gsub("Saturday", "Sáb", gsub("Sunday", "Dom", x)))))))) +
+  theme_minimal() +theme(plot.margin = margin(5, 0, 0, 0, "mm"),
+        panel.spacing = unit(10, "lines"))+
+  theme(axis.text.x = element_text(angle = 360, hjust = 1)) 
+
+horas<-ggplot(horadeldia, aes(x = crime_hour, y = Observaciones, fill = Observaciones)) +
+  geom_bar(stat = "identity") +geom_text(aes(label = Observaciones), vjust = -0.05, color = "black", size = 3, angle = 90, position = position_stack(vjust = 0.9))+
+  scale_fill_gradientn(colours = color_palette(nrow(horadeldia))) + 
+  labs(x = "Hora del día", y = "Observaciones") +theme(plot.margin = margin(2, 2, 2, 2, "mm"),
+        panel.spacing = unit(0, "lines"))+
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+
+grid.arrange(dias,horas)
+
+```
+
+
 
 ```{r}
 tm_shape(calles_barrio) + 
@@ -123,8 +173,38 @@ plot(app)
 unique(app)
 unique(app, rule="deldir")
 options(repr.plot.width = 50, repr.plot.height = 30)
-plot(quadratcount(app, nx = 17, ny = 18))
-quadrat.test(app, nx = 17, ny = 18)
+plot(quadratcount(app, nx = 13, ny = 8))
+quadrat.test(app, nx = 13, ny = 8)
+```
+```{r}
+grid <- ventana%>%
+  st_make_grid(n = c(13,8)) %>%
+  st_intersection(ventana) %>% 
+   st_cast("MULTIPOLYGON") %>%
+  st_sf()
+plot(grid)
+puntos_barrio <- st_transform(puntos_barrio, crs = st_crs(grid))
+
+inter <- st_intersects(grid, puntos_barrio)
+grid$count <- lengths(inter)
+ggplot(grid) + geom_sf(aes(fill = count))
+
+
+ggplot(grid) + geom_sf(aes(fill = count))+
+scale_fill_continuous(type = "viridis")
+
+
+
+grid.selec <- grid
+grilla<-ggplot(grid.selec) + geom_sf(aes(fill = count))+
+geom_sf_text(aes(label = count), size = 2, color = "white")+
+scale_fill_continuous(type = "viridis") +
+theme(
+  axis.text.x = element_text(angle = 45, vjust = 1, hjust=1),
+  axis.title.x = element_blank(),
+  axis.title.y = element_blank())+theme(plot.margin = margin(2, 2, 2, 2, "mm"),
+        panel.spacing = unit(0, "lines"))
+grilla
 ```
 
 
@@ -136,11 +216,12 @@ estimacion2<-bw.ppl(app)
 estimacion3<-bw.scott(app)
 plot(density.ppp(app,sigma = estimacion1,edge = T),main=paste("Diggle"))
 plot(density.ppp(app,sigma = estimacion2,edge = T),main=paste("LH-crossvalidation"))
-plot(density.ppp(app,sigma = estimacion3[1],edge = T),main=paste("Scott1"))
+plot(density.ppp(app,sigma = estimacion3[1],edge = T),main=paste(""))
 plot(density.ppp(app,sigma = estimacion3[2],edge = T),main=paste("Scott2"))
 estimacion3[1]
 estimacion3[2]
 ```
+
 
 
 
@@ -165,7 +246,7 @@ m1<-lppm(lpp_VALE ~ 1)
 r <- seq(0, 300, by=20)
 k_finom<-linearKinhom(lpp_VALE,lambda = m1,r)
 plot(k_finom)
-plot(lpp_VALE)
+plot(lpp_VALE,pch=19)
 #plot(red_vial_ln)
 ```
 

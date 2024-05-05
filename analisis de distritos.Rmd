@@ -6,6 +6,35 @@ output: html_document
 ---
 
 
+```{r}
+library(tidyverse)
+library(readxl)
+library(sf)
+library(leaflet)
+library(deldir)
+library(spatstat)
+#install.packages("tigris")
+library(tigris)
+library(spatstat.geom)
+library(spatstat.linnet)
+#install.packages("spNetwork")  
+library(spNetwork)
+library(sp)
+library(maps)
+library(stars)
+library(terra)
+#install.packages("sfnetworks")
+library(sfnetworks)
+#install.packages("PBSmapping")
+library(PBSmapping)
+library(tmap)
+library(gridExtra)
+library(grid)
+library(jpeg)
+#install.packages("raster")
+library(raster)
+pacman::p_load(tidyverse,sf,mapview)
+```
 
 ```{r}
 BASE<-read.csv("obs_data_112Valencia (1).csv", sep=",", header=TRUE)
