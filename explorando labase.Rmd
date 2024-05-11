@@ -153,9 +153,9 @@ y <- st_read("shape files-20221031T083303Z-001/shape files/valencia_road.shp",qu
 puntos_grafica<-puntos 
 dim(puntos_grafica)
 dim(puntos)
-ggplot()+geom_sf(data = ventana,color="black",size=5)+geom_sf(data = y,color="blue")+geom_sf(data = puntos_grafica,aes(),size=0.1,color="yellow")+scale_x_continuous()+theme(plot.margin = margin(1, 1, 1, 1, "mm"),
+ggplot()+geom_sf(data = ventana,color="black",size=5)+geom_sf(data = y,color="black")+geom_sf(data = puntos_grafica,aes(),size=0.1,color="yellow")+scale_x_continuous()+theme(plot.margin = margin(1, 1, 1, 1, "mm"),
         panel.spacing = unit(1, "lines"))
-ggplot()+geom_sf(data = ventana,color="black",size=2)+geom_sf(data = y,color="blue")+geom_sf(data = puntos_grafica,aes(),size=0.1,color="yellow")+facet_wrap(~crime_type,nrow=1,ncol=4)+
+ggplot()+geom_sf(data = ventana,color="black",size=2)+geom_sf(data = y,color="black")+geom_sf(data = puntos_grafica,aes(),size=0.1,color="yellow")+facet_wrap(~crime_type,nrow=1,ncol=4)+
         theme(axis.text.x = element_text(angle =90, vjust = 0.5, hjust = 1),strip.background = element_rect(fill = "lightblue"))
 
 
@@ -197,14 +197,25 @@ ST<-stmy |>  as_tsibble(index = Tiempo) |> select(Tiempo,Numero_de_Registros)
 ST %>%
   autoplot() +
   geom_point(color = "black") +  
-  geom_line(color = "blue") +    # Establecer título
-  theme_bw()  
+  geom_line(color = "blue") +    
+  theme_light()  
 ```
 
 ```{r}
 diadelasemana<-base |> group_by(week_day_name) |> summarise(Observaciones=n()) |> arrange(Observaciones)
-horadeldia<-base |> group_by(crime_hour) |> summarise(Observaciones=n()) |> arrange(crime_hour)
+horadeldia<-base |> group_by(crime_hour) |> summarise(Observaciones=n()) |> 
+                                          arrange(crime_hour) |> 
+                                          mutate(Porcentaje=round(Observaciones/sum(Observaciones)*100,2)) |> 
+                                          mutate(UBICACIÓN="CIUDAD DE VALENCIA")
 
+horadeldiabarrio<-puntos_barrio |> group_by(crime_hour) |> summarise(Observaciones=n()) |>
+                                                            arrange(crime_hour) |> 
+                                                             mutate(Porcentaje=round(Observaciones/sum(Observaciones)*100,2)) |> 
+                                                             mutate(UBICACIÓN="EL CABANYAL") 
+
+horadeldiabarrio<-as.data.frame(horadeldiabarrio)
+horadeldiabarrio<-horadeldiabarrio |> select(-geometry)
+barras_horario<-rbind(horadeldia,horadeldiabarrio)
 suma<-horadeldia |> filter(crime_hour>=18| crime_hour<=1)
 sum(suma$Observaciones)
 sum(horadeldia$Observaciones)
@@ -224,13 +235,28 @@ dias<-ggplot(diadelasemana, aes(x = week_day_name, y = Observaciones, fill = Obs
 ```
 ```{r}
 
-horas<-ggplot(horadeldia, aes(x = crime_hour, y = Observaciones, fill = Observaciones)) +
-  geom_bar(stat = "identity") +geom_text(aes(label = Observaciones), vjust = -0.05, color = "black", size = 3, angle = 90, position = position_stack(vjust = 0.9))+
-  scale_fill_gradientn(colours = color_palette(nrow(horadeldia))) + 
-  labs(x = "Hora del día", y = "Observaciones") +theme(plot.margin = margin(2, 2, 2, 2, "mm"),
-        panel.spacing = unit(0, "lines"))+
+
+
+palette_ubicacion1 <- c("yellow", "#66CCFF")
+palette_ubicacion2 <- c("#CC3333", "#FF6666")
+
+# Crear el gráfico
+horas <- ggplot(barras_horario, aes(x = crime_hour, y = Porcentaje, fill = UBICACIÓN)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  geom_text(aes(label = Porcentaje), vjust = -0.05, color = "black", size = 4, angle = 90, position = position_dodge(width = 1)) +
+  scale_fill_manual(values = c(palette_ubicacion1, palette_ubicacion2)) + 
+  labs(x = "Hora del día", y = "Porcentaje") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, size = 15, face = "bold"),  # Aumentar tamaño y poner en negrita
+    axis.text.y = element_text(size = 15, face = "bold"),  # Aumentar tamaño y poner en negrita
+    axis.title = element_text(size = 20, face = "bold"),   # Aumentar tamaño y poner en negrita
+    plot.margin = margin(2, 2, 2, 2, "mm"),
+    panel.spacing = unit(0, "lines")
+  )
+
+# Mostrar el gráfico
+horas
 
 ```
 
