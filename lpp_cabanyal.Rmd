@@ -134,7 +134,7 @@ horas<-ggplot(horadeldia, aes(x = crime_hour, y = Observaciones, fill = Observac
   labs(x = "Hora del día", y = "Observaciones") +theme(plot.margin = margin(2, 2, 2, 2, "mm"),
         panel.spacing = unit(0, "lines"))+
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1)) 
+  theme(axis.text.x = element_text(angle = 0, hjust = 1)) 
 
 grid.arrange(dias,horas)
 
@@ -235,6 +235,9 @@ estimacion3[1]
 estimacion3[2]
 ```
 ```{r}
+K_function <- Kest(app)
+summary(K_function)
+plot(K_function, main = "Función K(r)")
 K_functioninom <- Kinhom(app,r = seq(0,300,by=0.2))
 summary(K_functioninom)
 plot(K_functioninom, main = "Función K(r) no homogéneo")
@@ -251,6 +254,7 @@ plot(red_vial_ln, col = '#017308', pch = 18, lwd = 1, cex = 2,graticule = TRUE, 
 
 
 ```{r}
+#ANALISIS SOLO CON M1 DEPENDIENTE DE LA POSICION 
 #auxiliar<-st_union(calles_distrito1)
 #plot(auxiliar)
 red_vial_ln<- as_sfnetwork(calles_barrio)
@@ -359,19 +363,161 @@ plot(Centers)
 XX <- rMatClustlpp(Centers, R, alpha, lpp_VALE[['domain']])
 plot(XX, main="A realization of the model")
 ```
+
+
 ```{r}
-atm_distancia <- puntos_barrio$atm_dist
+#ANALISIS CON COVARIABLES
+## CREANDO VARIABLES
+pnight <- puntos_barrio$atm_dist
+Datm <- density(app, weights=pnight, sigma=77.26966)
+plot(Datm)
+
+pnight <- puntos_barrio$bank_dist
+Dbank <- density(app, weights=pnight, sigma=77.26966)
+plot(Dbank)
+
+pnight <- puntos_barrio$bar_dist
+Dbar <- density(app, weights=pnight, sigma=77.26966)
+plot(Dbank)
+
+pnight <- puntos_barrio$cafe_dist
+Dcafe <- density(app, weights=pnight, sigma=77.26966)
+plot(Dcafe)
+
+pnight <- puntos_barrio$industrial_dist
+Dindustrial <- density(app, weights=pnight, sigma=77.26966)
+plot(Dindustrial)
+
+pnight <- puntos_barrio$market_dist
+Dmarket <- density(app, weights=pnight, sigma=77.26966)
+plot(Dmarket)
+
+pnight <- puntos_barrio$nightclub_dist
+Dnight <- density(app, weights=pnight, sigma=77.26966)
+plot(Dnight)
+
+pnight <- puntos_barrio$police_dist
+Dpolice <- density(app, weights=pnight, sigma=77.26966)
+plot(Dpolice)
+
+
+pnight <- puntos_barrio$pub_dist
+Dpub <- density(app, weights=pnight, sigma=77.26966)
+plot(Dpub)
+
+pnight <- puntos_barrio$restaurant_dist
+Drestaurant <- density(app, weights=pnight, sigma=77.26966)
+plot(Drestaurant)
+
+
+pnight <- puntos_barrio$taxi_dist
+Dtaxi <- density(app, weights=pnight, sigma=77.26966)
+plot(Dtaxi)
+
+#QUITANDO VARIABLES
+m1<-lppm(lpp_VALE ~ Datm+Dbank+Dbar+Dcafe+Dindustrial+Dmarket+Dnight+Dpolice+Dpolice+Dpub+Drestaurant)
+m2<-lppm(lpp_VALE ~ Datm+Dbank+Dbar+Dcafe+Dindustrial+Dmarket+Dnight+Dpolice+Dpolice+Dpub)
+m3<-lppm(lpp_VALE ~ Datm+Dbank+Dbar+Dcafe+Dindustrial+Dmarket+Dnight+Dpolice)
+m4<-lppm(lpp_VALE ~ Datm+Dbank+Dbar+Dcafe+Dindustrial+Dmarket+Dnight)
+m5<-lppm(lpp_VALE ~ Datm+Dbank+Dbar+Dcafe+Dindustrial+Dmarket)
+m6<-lppm(lpp_VALE ~ Datm+Dbank+Dbar+Dcafe+Dindustrial)
+m7<-lppm(lpp_VALE ~ Datm+Dbank+Dbar+Dcafe)
+m8<-lppm(lpp_VALE ~ Datm+Dbank+Dbar)
+m9<-lppm(lpp_VALE ~ Datm+Dbank)
+m10<-lppm(lpp_VALE ~ Datm)
+m11<-lppm(lpp_VALE ~ 1)
+
+
+modelos<-list(m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11)
+
+# Número de modelos
+num_modelos <- length(modelos)
+
+# Crear una matriz para almacenar los resultados del ANOVA
+resultados_anova <- matrix(NA, nrow=num_modelos, ncol=num_modelos)
+rownames(resultados_anova) <- colnames(resultados_anova) <- names(modelos)
+
+# Realizar el ANOVA para cada par de modelos
+for (i in 1:(num_modelos-1)) {
+  for (j in (i+1):num_modelos) {
+    m1 <- modelos[[i]]
+    m2 <- modelos[[j]]
+    resultado_anova <- anova(m1, m2)
+    # Guardar el valor de devianza en la matriz
+    resultados_anova[i, j] <- resultado_anova$Deviance[2]
+  }
+}
+
+resultados_anova
+res_AIC<-numeric(length(modelos))
+k<-1
+for(i in modelos){
+  res_AIC[k]<-AIC(i)
+  k<-k+1
+}
+
+res_AIC
+
+# MODELOS elegidos al ojo 
+#en base a m3 #AIC=21257.82
+m3<-lppm(lpp_VALE ~ Datm+Dbank+Dbar+Dcafe+Dindustrial+Dmarket+Dnight+Dpolice)
+
+m12<-lppm(lpp_VALE ~ Datm+Dbank+Dbar+Dcafe+Dmarket+Dnight+Dpolice)
+AIC(m3)
+AIC(m12)
+anova.lppm(m3,m12,test ="LR")
+
+
+m12<-lppm(lpp_VALE ~ Datm+Dbank+Dbar+Dcafe+Dmarket+Dnight+Dpolice)
+AIC(m3)
+AIC(m12)
+anova.lppm(m3,m12,test ="LR")
+
+#NOS QUEDAMOS CON M3 POR AIC Y POR ANOVA.
+
+
+
+lpp_VALEatm_distancia <- puntos_barrio$atm_dist
 police_distancia <- puntos_barrio$police_dist
 bar_distancia <- puntos_barrio$bar_dist
 
-atm_dist_imagen <- as.im(as.matrix(atm_distancia), W = Window(app))
-police_dist_imagen <- as.im(as.matrix(police_distancia), W = Window(app))
-bar_dist_imagen <- as.im(as.matrix(bar_distancia), W = Window(app))
-m1<-lppm(lpp_VALE ~ atm_dist_imagen+police_dist_imagen+bar_dist_imagen)
-r <- seq(0, 300, by=30)
-k_finom<-linearKinhom(lpp_VALE,lambda = m1,r)
+#atm_dist_imagen <- as.im(as.matrix(atm_distancia), W = Window(app))
+#police_dist_imagen <- as.im(as.matrix(police_distancia), W = Window(app))
+#bar_dist_imagen <- as.im(as.matrix(bar_distancia), W = Window(app))
+#m1<-lppm(lpp_VALE ~ atm_dist_imagen+police_dist_imagen+bar_dist_imagen)
+m1<-m3
+r <- seq(0, 250, by=70)
+k_finom<-linearKinhom(lpp_VALE,lambda = m3,r)
 plot(k_finom)
 ```
+
+```{r}
+EIP <- predict(m1)
+#plot(EIP)
+
+ # Matern cluster process on a linear network
+ # Centers = (x,y)-coordinates of parent points
+ # R = The R parameter of the Matern cluster process
+ # alpha = The alpha parameter of the Matern cluster process
+ # LL = The linear network on which the point pattern should be simulated.
+rMatClustlpp <- function(Centers, R, alpha, LL) {
+X <- array(0,0)
+Y <- array(0,0)
+for(p in 1:length(Centers$data$x)) {
+BBCOutD <- disc(radius=R, centre=c(Centers$data$x[p],
+Centers$data$y[p]),
+npoly = 32)
+BBCD <- intersect.owin(LL$window, BBCOutD)
+if(volume(LL[BBCOutD])>0) {
+Xp <- rpoislpp(alpha/volume(LL[BBCOutD]), L=LL[BBCD])
+X <- append(X, as.numeric(Xp$data$x))
+Y <- append(Y, as.numeric(Xp$data$y))
+}
+}
+lpp(cbind(X,Y), LL)
+}
+```
+
 
 ```{r warning=FALSE}
 set.seed(2023)
@@ -406,7 +552,7 @@ for(i in 1:length(valpha)) {
 ```{r}
 # Centers from a Poisson process
 Centers <- rpoislpp(EIP/alpha, L=lpp_VALE[['domain']])
-par(mfrow=c(1,2))
+#par(mfrow=c(1,2))
 plot(Centers)
 XX <- rMatClustlpp(Centers, R, alpha, lpp_VALE[['domain']])
 plot(XX, main="A realization of the model")
@@ -519,22 +665,56 @@ ST <- as_tibble(ST, key=barrio )
 ```
 ```{r}
 combined_ts <- bind_rows(OrriolsST, NazaretST,BenicalapST, ST)
+combined_ts <-combined_ts|>mutate(Barrio=barrio) |> mutate(Barrio=ifelse(Barrio=="Cabanyal","El Cabanyal",Barrio)) 
 
-ggplot(combined_ts, aes(x = Tiempo, y = Numero_de_Registros, color = barrio)) +
+
+ggplot(combined_ts, aes(x = Tiempo, y = Numero_de_Registros, color = Barrio)) +
   geom_line(size = 1.5) +  # Ajusta el grosor de las líneas
   geom_point(color = 'black') +  # Pone los puntos de observación en color negro
   labs(title = " ",
        x = "Tiempo",
-       y = "Valor") +
+       y = "Observaciones") +
   theme_light() +  # Cambia el tema a theme_light()
-  theme(axis.text = element_text(face = "bold"),  # Texto de los ejes en negrita
-        axis.title = element_text(face = "bold"))
+  theme(axis.text = element_text(face = "bold", size = 10),  # Texto de los ejes en negrita y más grande
+        axis.title = element_text(face = "bold", size = 10),  # Títulos de los ejes en negrita y más grandes
+        axis.title.x = element_text(margin = margin(t = 10)),  # Separa el título del eje X del propio eje
+        axis.title.y = element_text(margin = margin(r = 10)),  # Separa el título del eje Y del propio eje
+        legend.text = element_text(size = 10),  # Agranda los valores en la leyenda
+        legend.title = element_text(size = 10))  # Agranda el título de la leyenda (si hay)
 ```
 
 ```{r}
 
 tsibbledata::gafa_stock %>%
  autoplot(vars(Close, log(Close)))
+
+```
+
+
+#SIMULACIONES
+```{r}
+# Definir el tamaño del cuadrado
+window <- ventana
+
+# Parámetros para el proceso de clusterización de Matern
+kappa <- 10  # Intensidad del proceso de los centros de los clusters
+r <- 0.05    # Radio de los clusters
+mu <- 50     # Número medio de puntos por cluster
+
+# Generar el proceso puntual con clusters usando rMatClust
+set.seed(42) # Para reproducibilidad
+point_pattern <- rMatClust(kappa, r, mu, win=window)
+
+# Redimensionar para tener exactamente 500 puntos
+while (npoints(point_pattern) != 500) {
+  point_pattern <- rMatClust(kappa, r, mu, win=window)
+}
+
+# Plotea el proceso puntual
+plot(point_pattern, main="Proceso Puntual con Clusters en un Cuadrado")
+
+# Mostrar número de puntos generados
+npoints(point_pattern)
 
 ```
 

@@ -72,8 +72,10 @@ barrio<-barrio |> filter(coddistbar=="112")
 barrio_sin_z <- st_zm(barrio)
 # Crear el mapa
 mapa <- leaflet() %>%
-  addTiles() %>% addPolygons(data = barrio_sin_z,color = "red",opacity = 1,
-  dashArray = "3",   weight = 6) 
+  addTiles() %>% addPolygons(data = ventana_sin_z,color = "black",opacity = 0.4,
+  dashArray = "2",   weight = 3) |> 
+  addPolygons(data = barrio_sin_z,color = "red",opacity = 0.5,
+  dashArray = "2",   weight = 3) 
 
 # Visualizar el mapa
 mapa
@@ -155,8 +157,20 @@ dim(puntos_grafica)
 dim(puntos)
 ggplot()+geom_sf(data = ventana,color="black",size=5)+geom_sf(data = y,color="black")+geom_sf(data = puntos_grafica,aes(),size=0.1,color="yellow")+scale_x_continuous()+theme(plot.margin = margin(1, 1, 1, 1, "mm"),
         panel.spacing = unit(1, "lines"))
-ggplot()+geom_sf(data = ventana,color="black",size=2)+geom_sf(data = y,color="black")+geom_sf(data = puntos_grafica,aes(),size=0.1,color="yellow")+facet_wrap(~crime_type,nrow=1,ncol=4)+
-        theme(axis.text.x = element_text(angle =90, vjust = 0.5, hjust = 1),strip.background = element_rect(fill = "lightblue"))
+
+puntos_grafica<- puntos_grafica |> mutate(crime_type=ifelse(crime_type=="Agresion","Agresión",ifelse(crime_type=="Sustraccion","Sustracción",crime_type)))
+
+ggplot() +
+  geom_sf(data = ventana, color = "black", size = 2) +
+  geom_sf(data = y, color = "black") +
+  geom_sf(data = puntos_grafica, aes(), size = 0.1, color = "yellow") +
+  facet_wrap(~crime_type, nrow = 1, ncol = 4) +
+  theme(
+    axis.text.x = element_text(size=rel(1.2),angle = 90, vjust = 0.5, hjust = 1, face = "bold"),
+    axis.text.y = element_text(size=rel(1.2),face = "bold"),
+    strip.text = element_text(size = rel(1.2)),  # Aumenta el tamaño del texto de cada categoría
+    strip.background = element_rect(fill = "lightblue")
+  )
 
 
 ```
@@ -168,10 +182,14 @@ tabla<-base |> group_by(crime_type) |> summarise(Tot=n()) |>
 
 
 tabla <- tabla[order(-tabla$Tot), ]
+tabla<-tabla |>  mutate(crime_type=ifelse(crime_type=="Agresion","Agresión",ifelse(crime_type=="Sustraccion","Sustracción",crime_type)))
+
+tabla$crime_type <- factor(tabla$crime_type, levels = c("Agresión", "AlarmasMujer", "Sustracción", "Otros"))
 
 # Crear una paleta de colores
-color_palette <- colorRampPalette(c("yellow", "orange","red"))
+color_palette <- colorRampPalette(c("yellow", "orange", "red"))
 
+# Crear el gráfico de barras con colores asignados según la altura de las barras
 # Crear el gráfico de barras con colores asignados según la altura de las barras
 ggplot(tabla, aes(x = crime_type, y = Tot, fill = Tot)) +
   geom_bar(color = "black", width = 0.9, stat = "identity", position = position_dodge()) +
@@ -181,7 +199,16 @@ ggplot(tabla, aes(x = crime_type, y = Tot, fill = Tot)) +
   geom_text(aes(label = paste0(Tot, " ", "", "(", Porcentaje, "%", ")")),
             vjust = -0.9, color = "black", hjust = 0.5,
             position = position_dodge(0.9), angle = 0, size = 4.0) +
-  theme_minimal() 
+  theme(
+    axis.text.x = element_text(size = rel(1), angle = 0, vjust = 1, hjust = 0.5, face = "bold"),
+    axis.text.y = element_text(size = rel(1), face = "bold"),
+    axis.title.x = element_text(margin = margin(t = 15, r = 0, b = 0, l = 0)),
+    axis.title.y = element_text(margin = margin(t = 0, r = 15, b = 0, l = 0)),
+    strip.text = element_text(size = rel(1.2)),  # Aumenta el tamaño del texto de cada categoría
+    strip.background = element_rect(fill = "lightblue")
+  )
+
+
 
 
 
@@ -243,12 +270,12 @@ palette_ubicacion2 <- c("#CC3333", "#FF6666")
 # Crear el gráfico
 horas <- ggplot(barras_horario, aes(x = crime_hour, y = Porcentaje, fill = UBICACIÓN)) +
   geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = Porcentaje), vjust = -0.05, color = "black", size = 4, angle = 90, position = position_dodge(width = 1)) +
+  geom_text(aes(label = Porcentaje),hjust=-0.4 ,vjust = -0.05, color = "black", size = 4, angle = 90, position = position_dodge(width = 1)) +
   scale_fill_manual(values = c(palette_ubicacion1, palette_ubicacion2)) + 
-  labs(x = "Hora del día", y = "Porcentaje") +
+  labs(x = "Hora del día", y = "Porcentaje %") +
   theme_minimal() +
   theme(
-    axis.text.x = element_text(angle = 45, hjust = 1, size = 15, face = "bold"),  # Aumentar tamaño y poner en negrita
+    axis.text.x = element_text(angle = 0, hjust = 1, size = 15, face = "bold"),  # Aumentar tamaño y poner en negrita
     axis.text.y = element_text(size = 15, face = "bold"),  # Aumentar tamaño y poner en negrita
     axis.title = element_text(size = 20, face = "bold"),   # Aumentar tamaño y poner en negrita
     plot.margin = margin(2, 2, 2, 2, "mm"),

@@ -1,0 +1,365 @@
+---
+title: "PP01"
+output: html_document
+date: "2024-05-03"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Paquetes
+
+```{r}
+library(spatstat)
+```
+
+# Intensidad
+
+## Proceso Homogéneo
+
+```{r pressure, echo=FALSE}
+plot(swedishpines)
+```
+
+Intensidad promedio estimada se puede calcular de dos formas diferentes
+
+```{r}
+npoints(swedishpines)/area(Window(swedishpines))
+intensity.ppp(swedishpines)
+intensity(swedishpines)
+```
+
+Más detalles sobre el proceso puntual se pueden obtener al realizar
+
+```{r}
+summary(swedishpines)
+```
+
+Si existen marcas, se calculará la intensidad para cada tipo
+
+```{r}
+plot(amacrine)
+```
+
+```{r}
+intensity.ppp(amacrine)
+intensity(amacrine)
+```
+
+### Estimación intensidad
+
+```{r}
+quadratcount(bei)
+```
+
+```{r}
+bei |> quadratcount( nx = 10, ny=10) |> plot(main = "Quadratcount")
+```
+
+Si queremos calcular la intensidad de acuerdo al conteo obtenido por el quadratcount (puntos dividido para el área), se puede usar la función intensity sobre un cuadrante.
+
+```{r}
+bei |> quadratcount( nx = 10, ny=10) |> intensity(, image=TRUE) |> 
+  plot(main = "Intensidad respecto a quadratcount")
+```
+
+### Test de homogeneidad
+
+Suponiendo una distribución de Poisson, la hipótesis nula asume que el proceso es un CRS.
+
+```{r}
+qt <- unmark(amacrine) |> quadrat.test(7,7)
+qt
+```
+
+```{r, fig.width=10, fig.height=6}
+plot(unmark(amacrine))
+plot(qt, add = TRUE)
+```
+Comparar con la $K$ función
+
+```{r}
+env <- envelope(unmark(amacrine), Kest, nsim=19, rank=1, global=TRUE)
+env
+```
+
+```{r}
+plot(env)
+```
+
+```{r}
+bei |> 
+envelope(Kest, nsim=19, rank=1, global=TRUE) |> 
+  plot(main = "K para base bei")
+```
+
+
+## Proceso no homogéneo
+
+Se asume que la función de intensidad $\lambda(u)$ depende de la ubicación $s$ en el espacio.
+
+### Estimación no parámetrica
+
+Los estimadores para la intensidad son:
+
+-   No correlacionada
+
+$$ \tilde{\lambda}^{(0)}(u) = \sum_{i=1}^n \kappa(u-x_i)$$
+
+-   Correlacionada uniformemente $$ \tilde{\lambda}^{(U)}(u) = \dfrac{1}{e(u)}\sum_{i=1}^n \kappa(u-x_i)$$
+
+-   Corrección de Diggle $$ \tilde{\lambda}^{(U)}(u) = \sum_{i=1}^n \dfrac{1}{e(x_i)} \kappa(u-x_i)$$
+
+para cualquier ubicación espacial $u$ dentro de la ventana $W$, donde $$
+e(u) = \int_W \kappa(u-v)
+$$
+
+y $\kappa(u)$ es una función de densidad, es decir, $$
+\kappa(u) \leq 0,\quad \forall u \in W \\
+\int_{\mathbb{R}^2} \kappa(u) du = 1
+$$
+
+Observación
+
+-   Una selección usual para el kernel es considerar una distribución normal.
+
+-   La desviación estándar del kernel es el parámetro de suavizamiento o smoothing bandwidth. Un mayor valor de banda (bandwidth) incrementa el sesgo pero disminuye la varianza.
+
+**Teorema (Formula de Campbell)**
+
+Suponga $f$ una función de ubicaciones espaciales $u$, y considere la suma aleatoria $$
+T = \sum_{i} f(x_i)
+$$
+
+de los puntos $x_i$ del proceso puntual $X$. La formula de Cambell indica que $$
+\mathbb{E}(T) = \mathbb{E}\left( \sum_{i} f(x_i) \right) 
+= \int_{\mathbb{R}^2} f(u) \lambda(u) du
+$$ donde $\lambda$ es la función de intensidad de $X$.
+
+!!! pag 169, en la que se compara el uso de los estimadores.
+
+Por defecto, se calcula el estimador uniforme del kernel, pero se puede indicar el estimador con la corrección de Diggle
+
+```{r}
+amacrine |> density.ppp(diggle = TRUE) |> 
+  plot(main = "Estimaición de la intensidad")
+```
+
+```{r}
+amacrine |> density.ppp(diggle = TRUE) |> 
+  contour(main = "Estimaición de la intensidad")
+```
+
+```{r}
+amacrine |> density.ppp(diggle = TRUE) |> 
+  persp(main = "Estimaición de la intensidad")
+```
+
+#### Selección de la banda de selección
+
+El valor de la banda indica el nivel de suavizamiento que tendrá la intensidad. Si no se especifica la banda, se toma por defecto un octavo de la longitud del lado más corto de la ventana considerada. Sin embargo, se puede seleccionar el valor optimo considerando por ejemplo
+
+```{r}
+b <- bw.diggle(amacrine)
+b
+```
+
+```{r}
+plot(b)
+```
+
+```{r}
+amacrine |> density.ppp(diggle = TRUE, sigma = b) |> 
+  plot(main = "Estimaición de la intensidad con valor óptimo")
+```
+
+La banda puede variar bastante dependiendo del método que se utilice, donde cada uno tiene supuesto que pueden no adaptarse al modelo estudiado.
+
+-   `bw.ppl` asume un proceso de Poisson inhomogéneo.
+
+-   `bw.diggle` asume un proceso de Cox, que forma más grupos o clustes clustered que un proceso de Poisson.
+
+-   `bw.scott`
+
+#### Métodos adaptativos
+
+En todos los casos, hemos supuesto que tanto como la función de suavizamiento como la banda es la misma para todo el proceso. Eso puede mejorarse si se consideran métodos adaptativos. Referencia el paquete `sparr` en `R`.
+
+Aquí `f` representa la fraacción de números del patrón puntual tomados de manera aleatoria y usados para realizar la partición de Dirichlet.
+
+```{r}
+amacrine |> adaptive.density(f=1) |> plot()
+```
+
+```{r}
+amacrine |> adaptive.density(f=0.1, nrep = 30) |> plot()
+```
+
+Otra opción es utilizar el vecino más cercano
+
+
+```{r}
+amacrine |> nndensity(k = 10) |> plot()
+```
+
+### Estimación paramétrica
+
+- Intensidad homogénea: $\lambda(u) = \lambda$
+
+- Intensidad homogénea por regiones  $\lambda(u) = b_j$ para todo $u \in B_j$.
+
+- Intensidad proporcional a un valor base:  $\lambda(u) = \theta b(u)$
+
+- Modelo exponencial:  $\lambda(u) = \kappa e^{\beta Z(u)} = \exp(\alpha + \beta(Z(u))$ donde $Z(u)$ es una covariable espacial y $\kappa$ y $\beta$ son parámetros. 
+
+- Modelo de  incidencia exponencial: $\lambda(u) = b(u) \exp(\alpha + \beta Z(u))$
+
+- Modelo log lineal: $\lambda_{\theta}(u) = \exp(B(u) + \boldsymbol{\theta}^\intercal \boldsymbol{Z}(u) ) = \exp(B(u) + \theta_1 Z_1(u) + \theta_2 Z_2(u) + \ldots + \theta_p Z_p(u) )$
+
+#### Ejemplo 1
+
+Ubicación de árboles en una zona. Para el modelo log lineal
+
+$$\lambda(u) = \exp(\beta_0 + \beta_1 S(u))$$
+donde $S(u)$ es la pendiente en la ubicación $u$.
+
+
+```{r}
+fit <- ppm(bei ~ grad, data=bei.extra)
+fit
+```
+de donde $\beta_0 \approx -5.39$ y $\beta_1 \approx 5.03$. 
+
+Podemos observar el efecto que tiene la covariable en la intensidad
+
+```{r}
+plot(effectfun(fit, "grad", se.fit=TRUE))
+```
+
+Otro modelo a considerar sería
+
+$$\lambda(u) = \exp(\mu + \alpha_{E(u)} + \alpha_{G(u)} + \gamma_{E(u),G(u)})$$
+es decir, 
+```{r}
+fit <- ppm(bei ~ elev * grad, data=bei.extra)
+fit
+```
+
+
+Podemos graficar también la estimación obtenida
+
+```{r}
+plot(fit, how="image", se=FALSE)
+```
+
+Confidence intervals for the parameters
+
+```{r}
+confint(fit, level=0.95)
+```
+
+
+#### Ejemplo 2
+
+Depositos de oro en Murchison, Australia. Primero pasamos los datos a kilómetros y calculamos la distancia a las fallas para cada punto. 
+
+```{r}
+mur <- solapply(murchison, rescale, s=1000, unitname="km")
+dfault <- with(mur,distfun(faults))
+```
+
+estimados el modelo
+
+$$\lambda(u) = \exp(\beta_0 + \beta_1 d(u))$$
+donde $d(u)$ es la distancia más corta desde $u$ a la falla geológica más cercana.
+
+
+```{r}
+fit <- ppm(gold ~ dfault, data=mur)
+fit
+```
+
+de donde $\beta_0 \approx -4.34$ y $\beta_1 \approx -0.26$. 
+
+```{r}
+plot(effectfun(fit, "dfault", se.fit=TRUE))
+```
+
+
+
+### Comparar significancia de parámetros
+
+Se compara con un modelos CRS y en este caso se rechaza. 
+
+```{r}
+fit0 <- ppm(bei ~ 1)
+fit1 <- ppm(bei ~ grad, data=bei.extra)
+anova(fit0, fit1, test="LR")
+```
+Se estudia la inclusión o no de ciertas variables
+
+```{r}
+fit2e <- ppm(bei ~ polynom(elev, 2), data=bei.extra)
+fit2e1g <- update(fit2e, . ~ . + grad)
+anova(fit2e, fit2e1g, test="LR")
+```
+### Selección de modelo mediante AIC
+
+Preferimos el modelo con el AIC más pequeño. 
+
+```{r}
+fitprop <- ppm(bei ~ offset(log(grad)),data=bei.extra) 
+fitnull <- ppm(bei ~1)
+AIC(fitprop)
+AIC(fitnull)
+```
+
+### Comparación de residuos
+
+```{r}
+diagnose.ppm(fit2e)
+```
+
+
+### Predicciones
+
+```{r}
+fit <- ppm(bei ~ polynom(grad, elev, 2), data=bei.extra) 
+lamhat <- predict(fit)
+lamB <- predict(fit, locations=bei)
+```
+
+```{r}
+predict(fit) |> plot()
+```
+
+### Simular el modelo ajustado
+
+```{r}
+X <- simulate(fitprop);plot(X[[1]])
+```
+
+
+#### Imple
+
+# Dependencia con covariables
+
+ # Pesos
+ 
+```{r}
+vols <- with(marks(finpines),
+(pi/12) * height * (diameter/100)^2)
+Dvol <- density(finpines, weights=vols, sigma=bw.ppl)
+plot(Dvol)
+```
+ 
+ 
+
+
+
+    			
+
+    		
+
+    	
