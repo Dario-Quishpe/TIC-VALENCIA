@@ -692,29 +692,130 @@ tsibbledata::gafa_stock %>%
 
 
 #SIMULACIONES
+
+```{r}
+ventana<- st_read("barris-barrios/barris-barrios.shp",quiet=TRUE)
+ventana<-ventana |> filter(coddistbar==112)
+ventana1 <- st_transform(ventana, crs = st_crs("EPSG:32630"))
+ventana2<-st_union(ventana1[1])
+window<-st_coordinates(st_reverse(ventana2[1]))
+a<-st_coordinates(st_reverse(ventana2[1]))
+window<-owin(poly=a[,c("X","Y")])
+plot(window)
+window
+vertices <- vertices.owin(window)
+
+
+nueva_x <- vertices$x * 0.00005  # Reducir en un 50% en la dimensión x
+nueva_y <- vertices$y * 0.00005  # Reducir en un 50% en la dimensión y
+
+# Crear la nueva ventana
+nueva_ventana <- owin(poly = cbind(nueva_x, nueva_y))
+plot(nueva_ventana)
+```
+
+
 ```{r}
 # Definir el tamaño del cuadrado
-window <- ventana
+#window <- ventana
 
-# Parámetros para el proceso de clusterización de Matern
-kappa <- 10  # Intensidad del proceso de los centros de los clusters
-r <- 0.05    # Radio de los clusters
-mu <- 50     # Número medio de puntos por cluster
+kappa <- 700  # Intensidad del proceso de los puntos madre
+mu <- 600   # Número medio de puntos hijo por punto madre
+r <- 80 # Número medio de puntos por cluster
 
-# Generar el proceso puntual con clusters usando rMatClust
-set.seed(42) # Para reproducibilidad
-point_pattern <- rMatClust(kappa, r, mu, win=window)
+point_pattern <- rMatClust(kappa, r, mu, win=nueva_ventana)
+plot(point_pattern)
 
-# Redimensionar para tener exactamente 500 puntos
-while (npoints(point_pattern) != 500) {
-  point_pattern <- rMatClust(kappa, r, mu, win=window)
-}
 
-# Plotea el proceso puntual
-plot(point_pattern, main="Proceso Puntual con Clusters en un Cuadrado")
+quadrat.test(point_pattern,nx = 6,ny = 8)
+plot(quadrat.test(point_pattern,nx = 6,ny = 8))
 
-# Mostrar número de puntos generados
 npoints(point_pattern)
 
+```
+
+```{r}
+
+window <- owin(c(0, 1), c(0, 1))
+
+# Parámetros iniciales del proceso de Matérn
+kappa <- 10   # Intensidad del proceso de los puntos madre
+mu <- 4       # Número medio de puntos hijo por punto madre
+r <- 0.1      # Radio de dispersión de los puntos hijo
+
+# Inicializar la variable para almacenar el número total de puntos
+total_points <- 0
+
+# Simular el proceso hasta que el número de puntos sea <= 50
+while (total_points > 50 || total_points == 0) {
+  matern_cluster <- rMatClust(kappa, r, mu, win=window)
+  total_points <- matern_cluster$n
+}
+
+# Graficar el resultado
+plot(matern_cluster, main=paste("Proceso Cluster de Matérn con", total_points, "puntos"))
+```
+
+```{r}
+# Definir la ventana poligonal
+vertices <- matrix(c(729140.7, 730337.6, 730337.6, 729140.7, 4371541, 4371541, 4373046, 4373046), ncol=2, byrow=TRUE)
+window <- owin(poly=vertices)
+
+# Inicializar los parámetros
+kappa <- 10   # Intensidad del proceso de los puntos madre
+mu <- 4       # Número medio de puntos hijo por punto madre
+r <- 0.05     # Radio de dispersión de los puntos hijo
+
+# Simular el proceso
+matern_cluster <- rMatClust(kappa, r, mu, win=window)
+
+# Contar el número de puntos dentro de la ventana
+num_points <- nrow(as.data.frame(matern_cluster))
+
+# Ajustar los parámetros si es necesario
+while (num_points > 100) {
+  # Disminuir la intensidad del proceso madre
+  kappa <- kappa * 0.9
+  
+  # Volver a simular el proceso
+  matern_cluster <- rMatClust(kappa, r, mu, win=window)
+  
+  # Contar el número de puntos dentro de la ventana
+  num_points <- nrow(as.data.frame(matern_cluster))
+}
+
+# Graficar el resultado
+plot(matern_cluster, main=paste("Proceso Cluster de Matérn con", num_points, "puntos"))
+```
+```{r}
+# Definir la ventana (cuadrada de 1x1)
+window <- owin(c(0, 1), c(0, 1))
+
+# Parámetros iniciales del proceso de Matérn
+kappa <- 15   # Intensidad del proceso de los puntos madre
+mu <- 20      # Número medio de puntos hijo por punto madre
+r <- 0.1      # Radio de dispersión de los puntos hijo
+
+# Inicializar la variable para almacenar el número total de puntos
+total_points <- 0
+
+
+
+# Graficar el resultado
+plot(matern_cluster, main=paste("Proceso Cluster de Matérn con", total_points, "puntos"))
+```
+```{r}
+library(sp)
+barrio_polygon <- Polygon(cbind(c(0, 0, 10, 10, 0), c(0, 10, 10, 0, 0)))
+barrio_polygons <- Polygons(list(barrio_polygon), ID = "1")
+barrio_sp <- SpatialPolygons(list(barrio_polygons))
+
+# Generar puntos aleatorios dentro del polígono del barrio
+n_points <- 100
+random_points <- spsample(barrio_sp, n_points, type = "random")
+
+# Simular el proceso de Matérn
+smoothness <- 1.5
+matern_process <- rMatern(n_points, scale = 1, smoothness = smoothness)
 ```
 
