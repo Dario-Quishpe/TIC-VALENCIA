@@ -177,7 +177,7 @@ ggplot() +
 ```{r}
 
 #tablita de frecuencias 
-tabla<-base |> group_by(crime_type) |> summarise(Tot=n()) |> 
+tabla<-base |> group_by(year,crime_type) |> summarise(Tot=n()) |> 
             mutate(Porcentaje=round(Tot/sum(Tot)*100,2))
 
 
@@ -214,6 +214,61 @@ ggplot(tabla, aes(x = crime_type, y = Tot, fill = Tot)) +
 
 ```
 
+
+```{r}
+tabla_agresion <- tabla |> filter(crime_type == "Agresion")
+
+# Verificar si hay datos para graficar
+if(nrow(tabla_agresion) > 0){
+  # Crear una paleta de colores
+  color_palette <- colorRampPalette(c("yellow", "orange", "red"))
+  
+  # Crear el gráfico de barras
+  ggplot(tabla_agresion, aes(x = factor(year), y = Tot, fill = Tot)) +
+    geom_bar(color = "black", width = 0.9, stat = "identity", position = position_dodge()) +
+    scale_fill_gradientn(colours = color_palette(nrow(tabla_agresion))) + 
+    ylim(c(0, max(tabla_agresion$Tot) * 1.1)) + 
+    labs(x = "Año", y = "Número de agresiones") +
+    geom_text(aes(label = paste0(Tot)),
+              vjust = -0.9, color = "black", hjust = 0.5,
+              position = position_dodge(0.9), angle = 0, size = 4.0) +
+    theme(
+      axis.text.x = element_text(size = rel(1), angle = 0, vjust = 1, hjust = 0.5, face = "bold"),
+      axis.text.y = element_text(size = rel(1), face = "bold"),
+      axis.title.x = element_text(size = rel(1.2), face = "bold", margin = margin(t = 15, r = 0, b = 0, l = 0)),
+      axis.title.y = element_text(size = rel(1.2), face = "bold", margin = margin(t = 0, r = 15, b = 0, l = 0)),
+      legend.position = "none",  # Eliminar la leyenda
+      strip.text = element_text(size = rel(0.1)),  # Aumenta el tamaño del texto de cada categoría
+      strip.background = element_rect(fill = "lightblue")
+    )
+} else {
+  print("No hay datos de agresiones para graficar.")
+}
+```
+```{r}
+st<-base |> mutate(crime_date=as.Date(crime_date,format = "%m/%d/%Y"))
+stmy<-st |>mutate(anio_mes=format(crime_date,"%Y-%m")) |> 
+        group_by(anio_mes) |> summarise(Numero_de_Registros=n())
+
+stmy$Tiempo <-yearmonth(stmy$anio_mes)
+ST<-stmy |>  as_tsibble(index = Tiempo) 
+
+ST %>%
+  autoplot() +
+  geom_point(color = "black", fill = "yellow", shape = 21, size = 3) +  # Puntos con contorno negro y relleno amarillo
+  geom_line(color = "black", size = 1) +  # Línea más gruesa
+  labs(x = "Fecha (Año-Mes)", y = "Número de Registros") +  # Cambiar títulos de los ejes
+  scale_x_yearmonth(breaks = "11 months", date_labels = "%Y-%m") +  # Mostrar más valores en el eje x
+  theme_bw() +
+  theme(
+    axis.title.x = element_text(size = 10, face = "bold"),  # Aumentar tamaño del título del eje x
+    axis.title.y = element_text(size = 10, face = "bold"),  # Aumentar tamaño del título del eje y
+    axis.text.x = element_text(angle = 90, hjust = 1),  # Rotar los textos del eje x para mejor legibilidad
+    legend.position = "none"  # Quitar la leyenda
+  )
+```
+
+
 ```{r}
 st<-base |> mutate(crime_date=as.Date(crime_date,format = "%m/%d/%Y"))
 stmy<-st |>mutate(anio_mes=format(crime_date,"%Y-%m")) |> 
@@ -241,7 +296,7 @@ horadeldiabarrio<-puntos_barrio |> group_by(crime_hour) |> summarise(Observacion
                                                              mutate(UBICACIÓN="EL CABANYAL") 
 
 horadeldiabarrio<-as.data.frame(horadeldiabarrio)
-horadeldiabarrio<-horadeldiabarrio |> select(-geometry)
+horadeldiabarrio<-horadeldiabarrio |> select(crime_hour)
 barras_horario<-rbind(horadeldia,horadeldiabarrio)
 suma<-horadeldia |> filter(crime_hour>=18| crime_hour<=1)
 sum(suma$Observaciones)
@@ -258,33 +313,71 @@ dias<-ggplot(diadelasemana, aes(x = week_day_name, y = Observaciones, fill = Obs
   scale_x_discrete(labels = function(x) gsub("Tuesday", "Mar", gsub("Monday", "Lun", gsub("Wednesday", "Miér", gsub("Thursday", "Jue", gsub("Friday", "Vier", gsub("Saturday", "Sáb", gsub("Sunday", "Dom", x)))))))) +
   theme_minimal() +theme(plot.margin = margin(5, 0, 0, 0, "mm"),
         panel.spacing = unit(10, "lines"))+
-  theme(axis.text.x = element_text(angle = 360, hjust = 1)) 
+  theme(axis.text.x = element_text(angle = 360, hjust = 1),legend.position = "none") 
+dias
 ```
+
+
+
+
 ```{r}
 
 
 
-palette_ubicacion1 <- c("yellow", "#66CCFF")
+# Definir paletas de colores
+palette_ubicacion1 <- c("yellow", "red")
 palette_ubicacion2 <- c("#CC3333", "#FF6666")
 
 # Crear el gráfico
 horas <- ggplot(barras_horario, aes(x = crime_hour, y = Porcentaje, fill = UBICACIÓN)) +
-  geom_bar(stat = "identity", position = "dodge") +
-  geom_text(aes(label = Porcentaje),hjust=-0.4 ,vjust = -0.05, color = "black", size = 4, angle = 90, position = position_dodge(width = 1)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.9)) +
+  geom_text(aes(label = Porcentaje), vjust = 0.3, color = "black", size = 4,angle=90, 
+            position = position_dodge(width = 0.9), hjust = -0.2) +
   scale_fill_manual(values = c(palette_ubicacion1, palette_ubicacion2)) + 
-  labs(x = "Hora del día", y = "Porcentaje %") +
+  labs(x = "Hora del día", y = "Porcentaje %", fill = "Ubicación") +
   theme_minimal() +
   theme(
-    axis.text.x = element_text(angle = 0, hjust = 1, size = 15, face = "bold"),  # Aumentar tamaño y poner en negrita
-    axis.text.y = element_text(size = 15, face = "bold"),  # Aumentar tamaño y poner en negrita
-    axis.title = element_text(size = 20, face = "bold"),   # Aumentar tamaño y poner en negrita
-    plot.margin = margin(2, 2, 2, 2, "mm"),
-    panel.spacing = unit(0, "lines")
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 10, face = "bold"),  # Texto horizontal y centrado
+    axis.text.y = element_text(size = 13, face = "bold"),  # Texto en el eje Y en negrita
+    axis.title = element_text(size = 13, face = "bold"),   # Títulos en negrita
+    legend.position = "top",  # Mover la leyenda a la parte superior
+    legend.text = element_text(size = 11),  # Reducir tamaño del texto de la leyenda
+    legend.title = element_text(size = 10),  # Reducir tamaño del título de la leyenda
+    plot.margin = margin(4, 0, 0, 0, "mm"),  # Ajustar márgenes del gráfico
+    panel.spacing = unit(4, "lines")
   )
 
 # Mostrar el gráfico
-horas
+print(horas)
+```
+```{r}
 
+# Crear la paleta de colores
+color_palette <- colorRampPalette(c("yellow", "orange", "red"))
+
+# Añadir una columna para el color de las barras según la paleta
+barras_horario <- barras_horario %>%
+  mutate(Color = color_palette(nrow(barras_horario)))
+
+# Crear el gráfico
+horas <- ggplot(horadeldia, aes(x = as.factor(crime_hour), y = Observaciones, fill = Observaciones)) +
+  geom_bar(stat = "identity") +
+  geom_text(aes(label = Observaciones), 
+            vjust = -0, hjust = 1, angle = 90, color = "black", size = 3) +
+  scale_fill_gradientn(colours = color_palette(nrow(barras_horario))) + 
+  labs(x = "Hora del día", y = " Observaciones") +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.5, size = 10),  # Texto horizontal y centrado
+    axis.text.y = element_text(size = 10),  # Texto en el eje Y en negrita
+    axis.title = element_text(size = 10 ),   # Títulos en negrita
+    plot.margin = margin(5, 0, 0, 0, "mm"),  # Ajustar márgenes del gráfico
+    panel.spacing = unit(4, "lines"),
+    legend.position = "none"  # Eliminar la leyenda
+  )
+
+# Mostrar el gráfico
+print(horas)
 ```
 
 ```{r}

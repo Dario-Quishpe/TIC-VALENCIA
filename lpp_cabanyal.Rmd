@@ -76,7 +76,7 @@ puntos <- st_transform(puntos,st_crs(barrio))
 puntos_barrio<-st_intersection(puntos,barrio)
 plot(puntos_barrio)
 calles_barrio<- interseccion[st_geometry_type(interseccion) == "LINESTRING", ]
-
+view(barrio)
 ```
 
 
@@ -85,8 +85,13 @@ calles_barrio<- interseccion[st_geometry_type(interseccion) == "LINESTRING", ]
 puntos_grafica<-puntos_barrio 
 dim(puntos_grafica)
 dim(puntos)
-ggplot()+geom_sf(data = ventana,color="black",size=20)+geom_sf(data = calles_barrio,color="black")+geom_sf(data = puntos_grafica,aes(),size=1.5,color="#C8DC02")+
-        theme(axis.text.x = element_text(angle =90, vjust = 0.5, hjust = 1),strip.background = element_rect(fill = "lightblue"))
+ggplot() +
+  geom_sf(data = ventana, color = "black", size = 0.2) +
+  geom_sf(data = calles_barrio, color = "black") +
+  geom_sf(data = puntos_grafica, aes(), size = 1.5, color = "red") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust = 1),
+        strip.background = element_rect(fill = "lightblue"),
+        plot.margin = unit(c(0, 0, 0, 0), "cm"))
 
 
 ```
@@ -231,9 +236,28 @@ plot(density.ppp(app,sigma = estimacion1,edge = T),main=paste("Diggle"))
 plot(density.ppp(app,sigma = estimacion2,edge = T),main=paste("LH-crossvalidation"))
 plot(density.ppp(app,sigma = estimacion3[1],edge = T),main=paste(""))
 plot(density.ppp(app,sigma = estimacion3[2],edge = T),main=paste("Scott2"))
+estimacion1
+estimacion2
 estimacion3[1]
 estimacion3[2]
+
 ```
+
+
+```{r}
+
+# Ajustar el layout para 2 filas y 2 columnas y reducir márgenes
+par(mfrow = c(2, 2), mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0.2, 0))
+
+# Graficar cada densidad en su respectivo lugar
+plot(density.ppp(app, sigma = 0.5, edge = TRUE), main = "Ancho de Banda: 0.5")
+plot(density.ppp(app, sigma = 15, edge = TRUE), main = "Ancho de Banda: 15")
+plot(density.ppp(app, sigma = 55, edge = TRUE), main = "Ancho de Banda: 55")
+plot(density.ppp(app, sigma = 120, edge = TRUE), main = "Ancho de Banda: 120")
+
+
+```
+
 ```{r}
 K_function <- Kest(app)
 summary(K_function)
@@ -269,13 +293,14 @@ lpp_VALE <- lpp(app,red_vial_ln)
 #plot(lambdahat)
 
 lambda <- density.lpp(lpp_VALE,sigma = 77.26966 ,distance = "euclidean")
-plot(lambda)
+par(mfrow = c(1, 1), mar = c(0, 0, 2, 0), oma = c(0, 0, 0, 0))
+plot(lambda,main="Ancho de Banda: 77.27")
 lpp_VALE<-unmark(lpp_VALE)
 m1<-lppm(lpp_VALE ~ 1)
-r <- seq(0, 300, by=20)
+r <- seq(0, 300, by=50)
 k_finom<-linearKinhom(lpp_VALE,lambda = m1,r)
 plot(k_finom,main="Función K no homogénea")
-plot(lpp_VALE, pch=19,main=" ",cex = 1.2,cols = "#FFC278")
+plot(lpp_VALE, pch=19,main=" ",cex = 1.2,cols = "red")
 plot(red_vial_ln)
 ```
 ```{r}
@@ -287,7 +312,7 @@ plot(lpp_VALE, col = '#FFC278', pch = 16, lwd = 1, cex = 1,graticule = TRUE, axe
 
 ```{r}
 
-EIP <- predict(m1)
+EIP <- predict(m3)
 #plot(EIP)
 
  # Matern cluster process on a linear network
@@ -299,16 +324,15 @@ rMatClustlpp <- function(Centers, R, alpha, LL) {
 X <- array(0,0)
 Y <- array(0,0)
 for(p in 1:length(Centers$data$x)) {
-BBCOutD <- disc(radius=R, centre=c(Centers$data$x[p],
-Centers$data$y[p]),
-npoly = 32)
-BBCD <- intersect.owin(LL$window, BBCOutD)
-if(volume(LL[BBCOutD])>0) {
-Xp <- rpoislpp(alpha/volume(LL[BBCOutD]), L=LL[BBCD])
-X <- append(X, as.numeric(Xp$data$x))
-Y <- append(Y, as.numeric(Xp$data$y))
-}
-}
+  BBCOutD <- disc(radius=R, centre=c(Centers$data$x[p],
+  Centers$data$y[p]),npoly = 32)
+  BBCD <- intersect.owin(LL$window, BBCOutD)
+  if(volume(LL[BBCOutD])>0) {
+    Xp <- rpoislpp(alpha/volume(LL[BBCOutD]), L=LL[BBCD])
+    X <- append(X, as.numeric(Xp$data$x))
+    Y <- append(Y, as.numeric(Xp$data$y))
+    }
+  }
 lpp(cbind(X,Y), LL)
 }
 ```
@@ -316,15 +340,17 @@ lpp(cbind(X,Y), LL)
 
 
 ```{r}
-nsim <- 10
-valpha <- seq(5, 30, by=6)
-vR <- seq(100, 1000, by=350)
-
+r <- seq(0, 300, by=50)
+nsim <- 5
+valpha <- seq(5, 100, by=20)
+vR <- seq(50, 800, by=100)
+k_finom<-linearKinhom(lpp_VALE,lambda = m3,r)
+plot(k_finom)
 ```
 
 
 ```{r}
-set.seed(2023)
+set.seed(2024)
 Contrast <- array(0, c(length(valpha), length(vR)))
 for(i in 1:length(valpha)) {
   for(j in 1:length(vR)) {
@@ -334,7 +360,7 @@ for(i in 1:length(valpha)) {
   # Centers from a Poisson process
   Centers <- rpoislpp(EIP/valpha[i], L=lpp_VALE[['domain']])
   XX <- rMatClustlpp(Centers, vR[j], valpha[i], lpp_VALE[['domain']])
-  KMC <- KMC + linearKinhom(XX, lambda = m1, r=r)$est
+  KMC <- KMC + linearKinhom(XX, lambda = m3, r=r)$est
   }
   # Compute the difference between estimated and average K
   Contrast[i,j] <- sqrt(sum((k_finom$est-KMC/nsim)^2))
@@ -345,74 +371,182 @@ for(i in 1:length(valpha)) {
 
 
 ```{r}
+save(Contrast, file="Contrastes.Rdata")
+```
+
+```{r}
  plot(as.im(Contrast), main="Values of Contrasts")
  # Finding the minimum value of the contrast
  id <- which(Contrast == min(Contrast), arr.ind = TRUE)
  alpha <- valpha[id[,1]]
  R <- vR[id[,2]]
  # Chosen values
-
+R
+alpha
+plot(x=r,KMC,type="l")
 ```
 
 
 ```{r}
+set.seed(2024)
 # Centers from a Poisson process
 Centers <- rpoislpp(EIP/alpha, L=lpp_VALE[['domain']])
-par(mfrow=c(1,2))
+
 plot(Centers)
+plot(Centers, col = 'red', pch = 16, lwd = 1, cex = 1,graticule = TRUE, axes = TRUE)
 XX <- rMatClustlpp(Centers, R, alpha, lpp_VALE[['domain']])
-plot(XX, main="A realization of the model")
+#plot(XX, main="Una realización del modelo")
+plot(XX, pch=19,main="Realización del proceso",cex = 0.5,cols = "red")
+lambda_modelo <- density.lpp(XX,sigma = 50 ,distance = "euclidean")
+plot(lambda_modelo)
+m_modelo<-lppm(XX ~ 1)
+r <- seq(0, 300, by=50)
+k_finom_modelo<-linearKinhom(XX,lambda = m_modelo,r)
+plot(k_finom_modelo)
+print(Centers)
+```
+```{r}
+# Graficar el patrón de puntos en la red lineal
+plot(Centers, main="Hot spots del barrio el Cabanyal",
+     sub="34 puntos, 368 vértices, 291 líneas",
+     lwd=2, col="grey", cex.main=1.5, cex.sub=1.2,graticule = TRUE, axes = TRUE)
+
+# Añadir los puntos en la red
+plot(Centers, add=TRUE, cols="red", pch=19, cex=1.5)
+```
+```{r}
+set.seed(2024)
+nsim <- 10
+ sims.densi <- vector(mode = "list", length = nsim)
+for(s in 1:nsim) {
+  CentersFDR <- rpoislpp(EIP/alpha, L=lpp_VALE[['domain']])
+  simss <- rMatClustlpp(CentersFDR, R, alpha, lpp_VALE[['domain']])
+  sims.densi[[s]] <- density.lpp(simss, sigma = 77, distance="euclidean")
+}
+```
+
+```{r}
+library(GET)
+ yx <- expand.grid(lambda$yrow, lambda$xcol)
+ noNA_id <- which(!is.na(lambda$v))
+ noNA_idsim <- which(!is.na(sims.densi[[1]]$v))
+ noNA_id <- intersect(noNA_id, noNA_idsim)
+ #max(densi[noNA_id]); summary(sapply(sims.densi, FUN=max))
+
+cset <- create_curve_set(list(
+r=data.frame(x=yx[,2], y=yx[,1],
+width=lambda$xstep, height=lambda$ystep)[noNA_id,],
+obs=as.vector(lambda$v)[noNA_id],
+sim_m=sapply(sims.densi, FUN=function(x){ as.vector(x$v)[noNA_id] },
+simplify=TRUE)))
+save(cset, file="crimenes_cset.Rdata")
+cset
+```
+```{r}
+set.seed(2024)
+plot(cset, idx=1, main="The observed intensity")
+
+```
+
+```{r}
+set.seed(2024)
+res <- fdr_envelope(cset, alternative = "greater")
+res
+ plot(res) + scale_radius(range = 1 * c(1, 6))
+```
+
+
+```{r}
+# Define el radio en metros (suponiendo que tus datos están en un sistema de coordenadas específico)
+radio_metros <- 350
+
+# Convertir radio de metros a las unidades de coordenadas (si es necesario)
+# Esto depende de la proyección de tus datos; si estás trabajando en un sistema de coordenadas lineales, esto es directo.
+radio_coordenadas <- radio_metros
+
+# Dibuja el patrón de puntos en una red lineal
+plot(Centers, main="Patrón de puntos en una red lineal",
+     sub="34 puntos, 368 vértices, 291 líneas",
+     lwd=2, col="grey", cex.main=1.5, cex.sub=1.2, graticule=TRUE, axes=TRUE)
+
+# Añade los puntos en la red
+points(Centers, col="red", pch=19, cex=1.5)
+
+# Dibuja círculos alrededor de cada punto sin rellenarlos
+symbols(Centers$data$x, Centers$data$y, circles=rep(radio_coordenadas, nrow(Centers$data)), inches=FALSE, add=TRUE, bg="transparent", fg="blue", lwd=2)
+
+```
+```{r}
+# Suponiendo que ya tienes definidos tus datos de Centros y estás en un sistema de coordenadas específico
+
+# Define el radio en metros
+radio_metros <- 450
+
+# Dibuja el patrón de puntos en una red lineal
+plot(Centers, main = "Patrón de puntos en una red lineal",
+     sub = "34 puntos, 368 vértices, 291 líneas",
+     lwd = 2, col = "grey", cex.main = 1.5, cex.sub = 1.2, graticule = TRUE, axes = TRUE)
+
+# Añade los puntos en la red
+points(Centers, col = "red", pch = 19, cex = 1.5)
+
+# Dibuja círculos alrededor de cada punto sin rellenarlos
+symbols(Centers$data$x, Centers$data$y, circles = rep(radio_metros, nrow(Centers$data)), inches = FALSE, add = TRUE, bg = "transparent", fg = "blue", lwd = 2)
 ```
 
 
 ```{r}
 #ANALISIS CON COVARIABLES
 ## CREANDO VARIABLES
+
+#par(mfrow = c(4,3), mar = c(0, 0, 1, 0), oma = c(0, 0, 0, 0))
+# Ajustar el layout para 2 filas y 2 columnas y reducir márgenes
+par(mfrow = c(4, 3), mar = c(0, 0, 0, 0), oma = c(0, 0, 0, 0), mai = c(0, 0, 0.2, 0))
 pnight <- puntos_barrio$atm_dist
 Datm <- density(app, weights=pnight, sigma=77.26966)
-plot(Datm)
+plot(Datm,main="Atm (Datm)")
 
 pnight <- puntos_barrio$bank_dist
 Dbank <- density(app, weights=pnight, sigma=77.26966)
-plot(Dbank)
+plot(Dbank,main="Banco (Dbank)")
 
 pnight <- puntos_barrio$bar_dist
 Dbar <- density(app, weights=pnight, sigma=77.26966)
-plot(Dbank)
+plot(Dbar,main="Bar (Dbar)")
 
 pnight <- puntos_barrio$cafe_dist
 Dcafe <- density(app, weights=pnight, sigma=77.26966)
-plot(Dcafe)
+plot(Dcafe,main="Cafetería (Dcafe)")
 
 pnight <- puntos_barrio$industrial_dist
 Dindustrial <- density(app, weights=pnight, sigma=77.26966)
-plot(Dindustrial)
+plot(Dindustrial,main="Zona Industrial (Dindustrial)")
 
 pnight <- puntos_barrio$market_dist
 Dmarket <- density(app, weights=pnight, sigma=77.26966)
-plot(Dmarket)
+plot(Dmarket,main="Mercado(Dmarket)")
 
 pnight <- puntos_barrio$nightclub_dist
 Dnight <- density(app, weights=pnight, sigma=77.26966)
-plot(Dnight)
+plot(Dnight,main="Nightclub (Dnight)")
 
 pnight <- puntos_barrio$police_dist
 Dpolice <- density(app, weights=pnight, sigma=77.26966)
-plot(Dpolice)
+plot(Dpolice,main="Dep Policia (Dpolice)")
 
 
 pnight <- puntos_barrio$pub_dist
 Dpub <- density(app, weights=pnight, sigma=77.26966)
-plot(Dpub)
+plot(Dpub,main="Pub (Dpub)")
 
 pnight <- puntos_barrio$restaurant_dist
 Drestaurant <- density(app, weights=pnight, sigma=77.26966)
-plot(Drestaurant)
+plot(Drestaurant,main="Restaurante (Drestaurant)")
 
 
 pnight <- puntos_barrio$taxi_dist
 Dtaxi <- density(app, weights=pnight, sigma=77.26966)
-plot(Dtaxi)
+plot(Dtaxi,main="Estacionamiento Taxis (Dtaxi)")
 
 #QUITANDO VARIABLES
 m1<-lppm(lpp_VALE ~ Datm+Dbank+Dbar+Dcafe+Dindustrial+Dmarket+Dnight+Dpolice+Dpolice+Dpub+Drestaurant)
@@ -426,7 +560,7 @@ m8<-lppm(lpp_VALE ~ Datm+Dbank+Dbar)
 m9<-lppm(lpp_VALE ~ Datm+Dbank)
 m10<-lppm(lpp_VALE ~ Datm)
 m11<-lppm(lpp_VALE ~ 1)
-
+#modelo_profe<-ppm(unmark(app)~taxi_dist,data=puntos_barrio)
 
 modelos<-list(m1,m2,m3,m4,m5,m6,m7,m8,m9,m10,m11)
 
@@ -488,7 +622,14 @@ bar_distancia <- puntos_barrio$bar_dist
 m1<-m3
 r <- seq(0, 250, by=70)
 k_finom<-linearKinhom(lpp_VALE,lambda = m3,r)
+envelope(m3)
+
 plot(k_finom)
+```
+```{r}
+par(mfrow = c(1, 1), mar = c(0, 0, 2, 0), oma = c(0, 0, 0, 0))
+plot(predict(m3),main=" ")
+m3
 ```
 
 ```{r}
@@ -706,8 +847,8 @@ window
 vertices <- vertices.owin(window)
 
 
-nueva_x <- vertices$x * 0.00005  # Reducir en un 50% en la dimensión x
-nueva_y <- vertices$y * 0.00005  # Reducir en un 50% en la dimensión y
+nueva_x <- vertices$x * 0.000005  
+nueva_y <- vertices$y * 0.000005  
 
 # Crear la nueva ventana
 nueva_ventana <- owin(poly = cbind(nueva_x, nueva_y))
@@ -719,11 +860,12 @@ plot(nueva_ventana)
 # Definir el tamaño del cuadrado
 #window <- ventana
 
-kappa <- 700  # Intensidad del proceso de los puntos madre
-mu <- 600   # Número medio de puntos hijo por punto madre
-r <- 80 # Número medio de puntos por cluster
+kappa <- 1000000   # Tasa de padres (puntos de base Poisson)
+r <- 0.001      # Radio de los clusters
+mu <- 10        # Número medio de puntos secundarios por cluster
 
-point_pattern <- rMatClust(kappa, r, mu, win=nueva_ventana)
+plot(nueva_ventana)
+point_pattern <- rMatClust(kappa, r, mu, win=nueva_ventana,)
 plot(point_pattern)
 
 
@@ -734,88 +876,141 @@ npoints(point_pattern)
 
 ```
 
+
 ```{r}
+library(spatstat)
+set.seed(10)
+# Parámetros
+lambda_parents <- 20  # Intensidad del proceso Poisson de los padres
+mu_offspring <- 10    # Media de la cantidad de hijos por padre
+R <- 0.1              # Radio del círculo alrededor del padre
+par(mfrow = c(1, 3), mar=c(5, 4, 1, 1), oma=c(5, 5, 5, 5))  # Ajustar los márgenes internos y externos
+# 1. Generar puntos padres (proceso Poisson homogéneo)
+parents <- rpoispp(lambda_parents, win=owin(c(0, 1), c(0, 2)))
+plot(parents, main="Puntos Padres", pch=19, cols = "blue")
 
-window <- owin(c(0, 1), c(0, 1))
-
-# Parámetros iniciales del proceso de Matérn
-kappa <- 10   # Intensidad del proceso de los puntos madre
-mu <- 4       # Número medio de puntos hijo por punto madre
-r <- 0.1      # Radio de dispersión de los puntos hijo
-
-# Inicializar la variable para almacenar el número total de puntos
-total_points <- 0
-
-# Simular el proceso hasta que el número de puntos sea <= 50
-while (total_points > 50 || total_points == 0) {
-  matern_cluster <- rMatClust(kappa, r, mu, win=window)
-  total_points <- matern_cluster$n
+# 2. Generar puntos hijos alrededor de cada padre y dibujar los círculos
+offspring <- NULL
+plot(parents, main="Discos de radio R", pch=16, xlab="", ylab="", asp=1, cols = "blue")
+for (i in 1:parents$n) {
+  num_offspring <- rpois(1, mu_offspring)
+  if (num_offspring > 0) {
+    angles <- runif(num_offspring, 0, 2 * pi)
+    radii <- R * sqrt(runif(num_offspring))
+    xoffs <- parents$x[i] + radii * cos(angles)
+    yoffs <- parents$y[i] + radii * sin(angles)
+    offspring <- rbind(offspring, data.frame(x = xoffs, y = yoffs))
+  }
+  # Dibujar los círculos
+  symbols(parents$x[i], parents$y[i], circles = R, add = TRUE, inches = FALSE, fg = "red")
 }
 
-# Graficar el resultado
-plot(matern_cluster, main=paste("Proceso Cluster de Matérn con", total_points, "puntos"))
-```
-
-```{r}
-# Definir la ventana poligonal
-vertices <- matrix(c(729140.7, 730337.6, 730337.6, 729140.7, 4371541, 4371541, 4373046, 4373046), ncol=2, byrow=TRUE)
-window <- owin(poly=vertices)
-
-# Inicializar los parámetros
-kappa <- 10   # Intensidad del proceso de los puntos madre
-mu <- 4       # Número medio de puntos hijo por punto madre
-r <- 0.05     # Radio de dispersión de los puntos hijo
-
-# Simular el proceso
-matern_cluster <- rMatClust(kappa, r, mu, win=window)
-
-# Contar el número de puntos dentro de la ventana
-num_points <- nrow(as.data.frame(matern_cluster))
-
-# Ajustar los parámetros si es necesario
-while (num_points > 100) {
-  # Disminuir la intensidad del proceso madre
-  kappa <- kappa * 0.9
-  
-  # Volver a simular el proceso
-  matern_cluster <- rMatClust(kappa, r, mu, win=window)
-  
-  # Contar el número de puntos dentro de la ventana
-  num_points <- nrow(as.data.frame(matern_cluster))
+# 3. Dibujar sólo los puntos hijos dentro de los círculos, sin los puntos padres
+offspring_points <- ppp(offspring$x, offspring$y, window = owin(c(0, 1), c(0, 2)))
+plot(offspring_points, main="Proceso cluster de Matérn", pch=16, xlab="", ylab="", asp=1)
+for (i in 1:parents$n) {
+  symbols(parents$x[i], parents$y[i], circles = R, add = TRUE, inches = FALSE, fg = "red")
 }
 
-# Graficar el resultado
-plot(matern_cluster, main=paste("Proceso Cluster de Matérn con", num_points, "puntos"))
+
+```
+
+```{r}
+win <- owin(c(0, 1), c(0, 2))
+
+offspring_points
+
+#unique(offspring_points)
+#unique(offspring_points, rule="deldir")
+
+#options(repr.plot.width = 50, repr.plot.height = 30)
+plot(quadratcount(offspring_points, nx = 8, ny = 8))
+quadrat.test(offspring_points, nx = 8, ny = 8)
+offspring_points
+
+```
+
+
+
+```{r}
+
+# Realizar el conteo por cuadrantes
+quadrant_count <- quadratcount(offspring_points, nx = 8, ny = 8)
+
+# Obtener los valores del conteo para asignar colores
+count_values <- as.vector(as.matrix(quadrant_count))  # Sin transponer la matriz
+
+# Crear la paleta de colores viridis
+color_palette <- viridis(max(count_values) + 1)  # Asegurarse que hay suficientes colores
+
+# Configuración del gráfico con dimensiones correctas
+plot(win, main="Conteo por Cuadrantes", type="n", asp=1)
+
+# Obtener el número de filas y columnas en el conteo de cuadrantes
+n_rows <- ncol(quadrant_count)
+n_cols <- nrow(quadrant_count)
+
+# Dibujar los cuadrantes con el color adecuado
+for (i in 1:n_rows) {
+  for (j in 1:n_cols) {
+    # Obtener el valor de conteo para el cuadrante actual
+    count_value <- quadrant_count[j, i]  # Acceder a la matriz correctamente
+    
+    # Invertir el índice de la fila
+    ybottom <- (n_cols - j) / n_cols
+    ytop <- (n_cols - j + 1) / n_cols
+    
+    # Definir las coordenadas del cuadrante actual
+    xleft <- (i - 1) / n_rows
+    xright <- i / n_rows
+    
+    # Ajustar las coordenadas según la escala de la ventana
+    xleft <- xleft * diff(win$xrange) + win$xrange[1]
+    xright <- xright * diff(win$xrange) + win$xrange[1]
+    ybottom <- ybottom * diff(win$yrange) + win$yrange[1]
+    ytop <- ytop * diff(win$yrange) + win$yrange[1]
+    
+    # Dibujar el cuadrante con el color adecuado
+    rect(xleft, ybottom, xright, ytop, col = color_palette[count_value + 1], border = "black")
+    
+    # Añadir el número en el centro del cuadrante
+    text((xleft + xright) / 2, (ybottom + ytop) / 2, labels = count_value, col = "white", cex = 0.8)
+  }
+}
+plot(quadratcount(offspring_points, nx = 8, ny = 8))
 ```
 ```{r}
-# Definir la ventana (cuadrada de 1x1)
-window <- owin(c(0, 1), c(0, 1))
-
-# Parámetros iniciales del proceso de Matérn
-kappa <- 15   # Intensidad del proceso de los puntos madre
-mu <- 20      # Número medio de puntos hijo por punto madre
-r <- 0.1      # Radio de dispersión de los puntos hijo
-
-# Inicializar la variable para almacenar el número total de puntos
-total_points <- 0
-
-
-
-# Graficar el resultado
-plot(matern_cluster, main=paste("Proceso Cluster de Matérn con", total_points, "puntos"))
+#Estimaciones de sigma 
+estimacion1<-bw.diggle(offspring_points)
+estimacion2<-bw.ppl(offspring_points)
+estimacion3<-bw.scott(offspring_points)
+g1<-plot(density.ppp(offspring_points,sigma = 0.04,edge = T),main=paste("Ancho de Banda:0.04"))
+g2<-plot(density.ppp(offspring_points,sigma = 0.05,edge = T),main=paste("Ancho de Banda:0.05"))
+g3<-plot(density.ppp(offspring_points,sigma = 0.09,edge = T),main=paste("Ancho de Banda:0.09"))
+g4<-plot(density.ppp(offspring_points,sigma = 0.15,edge = T),main=paste("Ancho de Banda:0.15"))
+estimacion1
+estimacion2
+estimacion3[1]
+estimacion3[2]
+grid.arrange(g1,g2,g3,g4,ncol=2)
 ```
 ```{r}
-library(sp)
-barrio_polygon <- Polygon(cbind(c(0, 0, 10, 10, 0), c(0, 10, 10, 0, 0)))
-barrio_polygons <- Polygons(list(barrio_polygon), ID = "1")
-barrio_sp <- SpatialPolygons(list(barrio_polygons))
+# Ajustar el layout para 2 filas y 2 columnas y reducir márgenes
+par(mfrow = c(2, 2), mar = c(0, 0, 1, 0), oma = c(0, 0, 0, 0))
 
-# Generar puntos aleatorios dentro del polígono del barrio
-n_points <- 100
-random_points <- spsample(barrio_sp, n_points, type = "random")
+# Graficar cada densidad en su respectivo lugar
+plot(density.ppp(offspring_points, sigma = 0.01, edge = TRUE), main = "Ancho de Banda: 0.01")
+plot(density.ppp(offspring_points, sigma = 0.07, edge = TRUE), main = "Ancho de Banda: 0.07")
+plot(density.ppp(offspring_points, sigma = 0.1, edge = TRUE), main = "Ancho de Banda: 0.1")
+plot(density.ppp(offspring_points, sigma = 0.2, edge = TRUE), main = "Ancho de Banda: 0.2")
+```
+```{r}
+K_function <- Kest(offspring_points)
+summary(K_function)
+plot(K_function, main = "Función K(r)")
+K_functioninom <- Kinhom(offspring_points,r = seq(0,0.15,by=0.01),correction = "border")
+summary(K_functioninom)
+plot(K_functioninom, main = "")
 
-# Simular el proceso de Matérn
-smoothness <- 1.5
-matern_process <- rMatern(n_points, scale = 1, smoothness = smoothness)
 ```
 
