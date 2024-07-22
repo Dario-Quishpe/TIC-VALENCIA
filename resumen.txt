@@ -1,0 +1,17 @@
+Introducción (40 palabras):
+El Cabanyal, uno de los barrios más emblemáticos de Valencia, España, ha visto un aumento en crímenes debido al consumo y distribución de drogas entre 2010 y 2019.
+
+Objetivo (35 palabras):
+Se construye un proceso puntual de clúster de Matérn sobre la red vial del barrio Cabanyal para identificar zonas conflictivas.
+
+Metodología (105 palabras):
+El estudio requiere modificaciones a las expresiones que permiten analizar procesos puntuales sobre una red vial. Utilizamos el algoritmo de estimación de puntos principales (hot spots), que incluye la estimación de un modelo log-lineal con variables espaciales complementarias. Además, empleamos el test de Monte Carlo para un estadístico de prueba funcional, guiado por criterios de tasa de falsos descubrimientos (FDR) y contrastes mínimos entre funciones de interacción de procesos puntuales simulados. Esto permite identificar los puntos padres del proceso de clúster de Matérn, que son los mencionados puntos principales.
+
+Resultados (120 palabras):
+La aplicación del proceso puntual de clúster de Matérn permitió identificar varias zonas conflictivas en el barrio del Cabanyal. Estos puntos calientes (hot spots) se correlacionan con áreas de alta densidad de crímenes y actividades ilícitas. La metodología empleada demostró ser eficaz en la detección de patrones espaciales de criminalidad, proporcionando una herramienta valiosa para las autoridades locales en la planificación de estrategias de intervención. Los resultados del modelo log-lineal y las pruebas de Monte Carlo mostraron una significativa concentración de eventos en ciertas partes del barrio, validando la hipótesis inicial sobre la distribución espacial de los crímenes.
+
+Discusión (80 palabras):
+Los resultados obtenidos confirman que el barrio del Cabanyal presenta áreas específicas con alta incidencia de crímenes relacionados con drogas. La metodología aplicada no solo valida la existencia de estos puntos calientes, sino que también ofrece un enfoque robusto para su identificación. Estos hallazgos pueden ser utilizados por las autoridades para focalizar esfuerzos en la prevención y control del crimen, mejorando así la seguridad del barrio. Además, el enfoque metodológico puede ser replicado en otros contextos urbanos con problemas similares.
+
+Conclusiones (30 palabras):
+El estudio identifica efectivamente zonas conflictivas en el Cabanyal, proporcionando una herramienta útil para la intervención y planificación de la seguridad urbana basada en procesos puntuales de clúster.

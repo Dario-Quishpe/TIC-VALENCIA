@@ -262,7 +262,7 @@ plot(density.ppp(app, sigma = 120, edge = TRUE), main = "Ancho de Banda: 120")
 K_function <- Kest(app)
 summary(K_function)
 plot(K_function, main = "Función K(r)")
-K_functioninom <- Kinhom(app,r = seq(0,300,by=0.2))
+K_functioninom <- Kinhom(app,r = seq(0,180,by=10))
 summary(K_functioninom)
 plot(K_functioninom, main = "Función K(r) no homogéneo")
 plot(Gest(app))
@@ -371,11 +371,20 @@ for(i in 1:length(valpha)) {
 
 
 ```{r}
-save(Contrast, file="Contrastes.Rdata")
+#save(Contrast, file="Contrastes.Rdata")
+load(file = "Contrastes.Rdata")
+```
+
+
+```{r fig.height=3, fig.width=5}
+par(mar = c(1, 1, 1, 1.5) )  # Ajusta los márgenes (bottom, left, top, right)
+par(mgp = c(0, 1, 1))  # Ajusta los márgenes para title, axis label, and axis numbers
+plot(as.im(Contrast), main="Valores de contraste",cex.main = 0.8)
+
 ```
 
 ```{r}
- plot(as.im(Contrast), main="Values of Contrasts")
+ plot(as.im(Contrast), main="Valores de contraste")
  # Finding the minimum value of the contrast
  id <- which(Contrast == min(Contrast), arr.ind = TRUE)
  alpha <- valpha[id[,1]]
@@ -397,7 +406,7 @@ plot(Centers, col = 'red', pch = 16, lwd = 1, cex = 1,graticule = TRUE, axes = T
 XX <- rMatClustlpp(Centers, R, alpha, lpp_VALE[['domain']])
 #plot(XX, main="Una realización del modelo")
 plot(XX, pch=19,main="Realización del proceso",cex = 0.5,cols = "red")
-lambda_modelo <- density.lpp(XX,sigma = 50 ,distance = "euclidean")
+lambda_modelo <- density.lpp(XX,sigma = 70 ,distance = "euclidean")
 plot(lambda_modelo)
 m_modelo<-lppm(XX ~ 1)
 r <- seq(0, 300, by=50)
@@ -406,17 +415,70 @@ plot(k_finom_modelo)
 print(Centers)
 ```
 ```{r}
+m1<-lppm(lpp_VALE ~ 1)
+r <- seq(0, 300, by=50)
+k_finom<-linearKinhom(lpp_VALE,lambda = m1,r)
+m_modelo<-lppm(XX ~ 1)
+r <- seq(0, 300, by=50)
+k_finom_modelo<-linearKinhom(XX,lambda = m_modelo,r)
+plot(k_finom,main="Función K no homogénea")
+KMC_promedios<-KMC/c(1,1,2,3,4,5,6)
+lines(r, KMC_promedios, col = "red", lwd = 2)
+
+```
+
+
+```{r fig.height=5, fig.width=7}
+par(mar = c(1, 1, 1, 1.5) )  # Ajusta los márgenes (bottom, left, top, right)
+par(mgp = c(0, 1, 1))
+plot(XX, pch=19,main=" ",cex = 0.5,cols = "red")
+```
+
+
+```{r fig.height=5, fig.width=7}
 # Graficar el patrón de puntos en la red lineal
-plot(Centers, main="Hot spots del barrio el Cabanyal",
+plot(lambda_modelo)
+plot(Centers, main=" ",
      sub="34 puntos, 368 vértices, 291 líneas",
      lwd=2, col="grey", cex.main=1.5, cex.sub=1.2,graticule = TRUE, axes = TRUE)
 
 # Añadir los puntos en la red
 plot(Centers, add=TRUE, cols="red", pch=19, cex=1.5)
 ```
+
+```{r}
+par(mar = c(1, 1, 1, 2) )  # Ajusta los márgenes (bottom, left, top, right)
+par(mgp = c(2, 1, 1))
+par(cex.axis = 1) 
+# Graficar el patrón de puntos en la red lineal
+plot(lambda_modelo,main="",graticule ,lwd=2, cex.main=1, cex.sub=1)
+#points(Centers, main=" ",
+#     sub="34 puntos, 368 vértices, 291 líneas",
+#     lwd=2, col="grey", cex.main=1.5, cex.sub=1.2)
+
+# Añadir los puntos en la red
+points(Centers, pch=19, cex=1.5)
+```
+
+```{r}
+
+par(mar = c(1, 1, 1, 2) )  # Ajusta los márgenes (bottom, left, top, right)
+par(mgp = c(2, 1, 1))
+par(cex.axis = 1) 
+# Graficar el patrón de puntos en la red lineal
+plot(lambda,main="",graticule ,lwd=2, cex.main=1, cex.sub=1)
+#points(Centers, main=" ",
+#     sub="34 puntos, 368 vértices, 291 líneas",
+#     lwd=2, col="grey", cex.main=1.5, cex.sub=1.2)
+
+# Añadir los puntos en la red
+points(Centers, pch=19, cex=1.5)
+```
+
+
 ```{r}
 set.seed(2024)
-nsim <- 10
+nsim <- 1000
  sims.densi <- vector(mode = "list", length = nsim)
 for(s in 1:nsim) {
   CentersFDR <- rpoislpp(EIP/alpha, L=lpp_VALE[['domain']])
@@ -444,15 +506,17 @@ cset
 ```
 ```{r}
 set.seed(2024)
-plot(cset, idx=1, main="The observed intensity")
+plot(cset, idx=10, main="The observed intensity")
 
 ```
 
 ```{r}
 set.seed(2024)
-res <- fdr_envelope(cset, alternative = "greater")
+res <- fdr_envelope(cset,alternative = "greater",alpha = 0.20)
 res
- plot(res) + scale_radius(range = 1 * c(1, 6))
+
+plot(res)+scale_radius(range = 0.5 * c(1, 10))
+
 ```
 
 
